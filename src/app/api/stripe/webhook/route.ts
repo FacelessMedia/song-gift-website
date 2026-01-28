@@ -93,7 +93,11 @@ export async function POST(request: NextRequest) {
           .single();
           
         if (fetchError) {
-          console.error('Failed to fetch checkout data:', fetchError);
+          if (fetchError.code === 'PGRST116') {
+            console.log('No checkout data found in temporary storage (may have expired)');
+          } else {
+            console.error('Failed to fetch checkout data:', fetchError);
+          }
         } else if (checkoutData) {
           intakePayload = checkoutData.intake_payload;
           console.log('Retrieved full intake data from temporary storage');
@@ -103,6 +107,8 @@ export async function POST(request: NextRequest) {
             .from('temp_checkout_data')
             .delete()
             .eq('checkout_id', checkoutId);
+        } else {
+          console.log('No checkout data found in temporary storage');
         }
       }
       
