@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { sendOrderToN8n, validateN8nConfig } from '@/lib/n8nWebhook';
 import Stripe from 'stripe';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -188,6 +189,41 @@ export async function POST(request: NextRequest) {
         amount: order.amount_paid,
         deliverySpeed: order.delivery_speed
       });
+
+      // Send order data to n8n webhook (don't fail if webhook fails)
+      try {
+        const n8nConfig = validateN8nConfig();
+        if (n8nConfig.isConfigured) {
+          console.log('Sending order to n8n webhook...');
+          
+          const webhookPayload = {
+            tracking_id: order.tracking_id,
+            created_at: order.created_at,
+            paid_at: order.paid_at,
+            order_status: order.order_status,
+            expected_delivery_at: order.expected_delivery_at,
+            delivery_speed: order.delivery_speed,
+            amount_paid: order.amount_paid,
+            currency: order.currency,
+            customer_email: order.customer_email,
+            stripe_checkout_session_id: order.stripe_checkout_session_id,
+            stripe_payment_intent_id: order.stripe_payment_intent_id,
+            intake_payload: order.intake_payload
+          };
+
+          const webhookSuccess = await sendOrderToN8n(webhookPayload);
+          
+          if (webhookSuccess) {
+            console.log('Successfully sent order to n8n webhook');
+          } else {
+            console.warn('Failed to send order to n8n webhook, but order was saved');
+          }
+        } else {
+          console.log('n8n webhook not configured, skipping');
+        }
+      } catch (webhookError) {
+        console.error('Error sending to n8n webhook (order still saved):', webhookError);
+      }
 
       return NextResponse.json({ 
         received: true, 
