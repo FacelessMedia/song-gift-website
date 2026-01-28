@@ -91,7 +91,7 @@ export default function Hero() {
             {/* YouTube Embed with nocookie domain for less branding */}
             <iframe
               className="w-full h-full object-cover"
-              src="https://www.youtube-nocookie.com/embed/SMaNdTcB17c?mute=1&controls=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&cc_load_policy=0&disablekb=1&fs=1&playsinline=1&origin=https://song-gift-website.vercel.app"
+              src="https://www.youtube-nocookie.com/embed/uRQsEE_yP1M?mute=1&controls=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&cc_load_policy=0&disablekb=1&fs=1&playsinline=1&origin=https://song-gift-website.vercel.app"
               title="Featured Video - Song Creation Process"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

@@ -29,9 +29,13 @@ export default function Navigation() {
           <div className="flex items-center">
             <button
               onClick={() => handleNavigation('/')}
-              className="font-heading text-2xl font-bold text-text-main hover:text-primary transition-colors"
+              className="flex items-center hover:opacity-80 transition-opacity"
             >
-              SongGift
+              <img
+                src="/songgift_logo_black.png"
+                alt="SongGift"
+                className="h-8 w-auto"
+              />
             </button>
           </div>
 
