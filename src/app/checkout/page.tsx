@@ -15,6 +15,7 @@ export default function Checkout() {
   const { intakeData, updateIntakeData, isLoaded, getFirstIncompleteStep } = useIntakeData();
   const [isIntakeComplete, setIsIntakeComplete] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     if (isLoaded) {
@@ -107,6 +108,41 @@ export default function Checkout() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Handle Stripe checkout
+  const handleCheckout = async () => {
+    if (!isIntakeComplete) return;
+
+    setIsProcessingPayment(true);
+
+    try {
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: 'customer@example.com', // TODO: Get from user input
+          delivery_speed: intakeData.expressDelivery ? 'rush' : 'standard',
+          intake_payload: intakeData,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Failed to process checkout. Please try again.');
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -212,10 +248,18 @@ export default function Checkout() {
                     variant="primary" 
                     size="lg" 
                     fullWidth
-                    disabled={!isIntakeComplete}
-                    className={!isIntakeComplete ? "opacity-50 cursor-not-allowed" : ""}
+                    disabled={!isIntakeComplete || isProcessingPayment}
+                    className={(!isIntakeComplete || isProcessingPayment) ? "opacity-50 cursor-not-allowed" : ""}
+                    onClick={handleCheckout}
                   >
-                    Complete My Order - ${finalTotal}
+                    {isProcessingPayment ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      `Complete My Order - $${finalTotal}`
+                    )}
                   </Button>
                 </div>
               </div>
