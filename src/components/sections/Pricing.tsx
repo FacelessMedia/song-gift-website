@@ -99,7 +99,7 @@ export default function Pricing() {
                   Express Delivery Upgrade (+$39)
                 </label>
                 <p className="font-body text-text-muted text-sm mt-1">
-                  Get your song in 12-24 hours instead of 48 hours. Perfect for last-minute gifts!
+                  Get your song delivered within 24 hours instead of within 48 hours. Perfect for last-minute gifts!
                 </p>
               </div>
             </div>

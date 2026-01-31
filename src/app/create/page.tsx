@@ -15,14 +15,41 @@ export default function CreateSong() {
     const targetStep = sessionStorage.getItem('targetStep');
     if (targetStep && isLoaded) {
       const stepNumber = parseInt(targetStep, 10);
-      if (stepNumber >= 1 && stepNumber <= 5) {
+      if (stepNumber >= 1 && stepNumber <= 6) {
         setCurrentStep(stepNumber);
       }
       sessionStorage.removeItem('targetStep'); // Clean up
     }
   }, [isLoaded]);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
+
+  // Helper function to generate personalized text based on step and recipient data
+  const getPersonalizedText = (step: number) => {
+    if (!intakeData.recipientName || !intakeData.recipientRelationship || step === 1) {
+      return null;
+    }
+
+    const name = intakeData.recipientName;
+    const relationship = intakeData.recipientRelationship === 'other' 
+      ? intakeData.recipientCustomRelation 
+      : intakeData.recipientRelationship;
+
+    switch (step) {
+      case 2:
+        return `You're creating something special for your ${relationship}, ${name}.`;
+      case 3:
+        return `${name} is lucky to have someone putting this much thought into a song.`;
+      case 4:
+        return `Let's capture what makes ${name} so special to you.`;
+      case 5:
+        return `This is where your heart speaks directly to ${name}.`;
+      case 6:
+        return `Almost ready to create ${name}'s special song — just need your details.`;
+      default:
+        return null;
+    }
+  };
 
   // Show loading state while data is being loaded
   if (!isLoaded) {
@@ -68,7 +95,7 @@ export default function CreateSong() {
       case 2:
         return intakeData.primaryLanguage !== '' && 
                intakeData.languageStyle !== '' &&
-               (intakeData.languageStyle !== 'bilingual-blend' || intakeData.secondaryLanguage !== '');
+               (intakeData.languageStyle === '100-primary' || intakeData.secondaryLanguage !== '');
       case 3:
         return intakeData.musicStyle.length > 0 && 
                intakeData.emotionalVibe.length > 0 && 
@@ -79,6 +106,10 @@ export default function CreateSong() {
                intakeData.faithExpressionLevel !== '';
       case 5:
         return intakeData.coreMessage.trim() !== '';
+      case 6:
+        return intakeData.fullName?.trim() !== '' && 
+               intakeData.email?.trim() !== '' && 
+               intakeData.phoneNumber?.trim() !== '';
       default:
         return false;
     }
@@ -96,7 +127,7 @@ export default function CreateSong() {
               {/* Recipient Relationship */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  What is your relationship to them?
+                  What is your relationship to them? <span className="text-primary">*</span>
                 </label>
                 <div className="flex flex-wrap gap-3">
                   {[
@@ -127,7 +158,7 @@ export default function CreateSong() {
               {intakeData.recipientRelationship === 'other' && (
                 <div>
                   <label htmlFor="custom-relation" className="block font-body font-semibold text-text-main mb-3">
-                    Please specify your relationship
+                    Please specify your relationship <span className="text-primary">*</span>
                   </label>
                   <input
                     type="text"
@@ -177,7 +208,7 @@ export default function CreateSong() {
               {/* Song Perspective */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  From whose perspective should the song be written?
+                  From whose perspective should the song be written? <span className="text-primary">*</span>
                 </label>
                 <div className="flex flex-wrap gap-3">
                   {[
@@ -199,8 +230,12 @@ export default function CreateSong() {
                 {/* Custom Perspective (conditional) */}
                 {intakeData.songPerspective === 'other' && (
                   <div className="mt-4">
+                    <label htmlFor="custom-perspective" className="block font-body font-semibold text-text-main mb-3">
+                      Please specify the perspective <span className="text-primary">*</span>
+                    </label>
                     <input
                       type="text"
+                      id="custom-perspective"
                       value={intakeData.songPerspectiveCustom}
                       onChange={(e) => updateIntakeData('songPerspectiveCustom', e.target.value)}
                       placeholder="e.g. From our grandparents, From their children, From my future self"
@@ -220,37 +255,40 @@ export default function CreateSong() {
             title="What language should their heart hear this in?"
             subtitle="What language would feel most natural and meaningful for them to hear this song in?"
           >
+            {getPersonalizedText(2) && (
+              <div className="mb-4 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10">
+                <p className="text-sm font-body text-primary font-medium text-center">
+                  {getPersonalizedText(2)}
+                </p>
+              </div>
+            )}
             <div className="space-y-6">
               {/* Primary Language */}
               <div>
                 <label htmlFor="primary-language" className="block font-body font-semibold text-text-main mb-3">
-                  Primary language
+                  Primary language <span className="text-primary">*</span>
                 </label>
-                <select
+                <input
+                  type="text"
                   id="primary-language"
                   value={intakeData.primaryLanguage}
                   onChange={(e) => updateIntakeData('primaryLanguage', e.target.value)}
-                  className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                  placeholder="e.g., English, Spanish, French, etc."
+                  className="w-full px-4 py-2.5 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
                   required
-                >
-                  <option value="">Select a language</option>
-                  <option value="english">English</option>
-                  <option value="spanish">Spanish</option>
-                  <option value="portuguese">Portuguese</option>
-                  <option value="french">French</option>
-                </select>
+                />
               </div>
 
               {/* Language Style */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Language style
+                  Language style <span className="text-primary">*</span>
                 </label>
                 <div className="space-y-2">
                   {[
-                    { value: '100-primary', label: '100% primary' },
-                    { value: 'mostly-primary', label: 'Mostly primary with some secondary' },
-                    { value: 'bilingual-blend', label: 'Bilingual blend' }
+                    { value: '100-primary', label: '100% Primary' },
+                    { value: 'mostly-primary', label: 'Mostly Primary with Some Secondary' },
+                    { value: 'bilingual-blend', label: 'Bilingual Blend' }
                   ].map((option) => (
                     <OptionButton
                       key={option.value}
@@ -265,30 +303,20 @@ export default function CreateSong() {
               </div>
 
               {/* Secondary Language (conditional) */}
-              {intakeData.languageStyle === 'bilingual-blend' && (
+              {(intakeData.languageStyle === 'mostly-primary' || intakeData.languageStyle === 'bilingual-blend') && (
                 <div>
                   <label htmlFor="secondary-language" className="block font-body font-semibold text-text-main mb-3">
-                    Secondary language
+                    Secondary language <span className="text-primary">*</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
                     id="secondary-language"
                     value={intakeData.secondaryLanguage}
                     onChange={(e) => updateIntakeData('secondaryLanguage', e.target.value)}
-                    className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                    placeholder="e.g., English, Spanish, French, etc."
+                    className="w-full px-4 py-2.5 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
                     required
-                  >
-                    <option value="">Select a secondary language</option>
-                    {[
-                      { value: 'english', label: 'English' },
-                      { value: 'spanish', label: 'Spanish' },
-                      { value: 'portuguese', label: 'Portuguese' },
-                      { value: 'french', label: 'French' }
-                    ].filter(lang => lang.value !== intakeData.primaryLanguage).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
 
@@ -319,11 +347,18 @@ export default function CreateSong() {
             title="How should this song feel when it plays?"
             subtitle="When they hear this song, what kind of sound or atmosphere do you imagine?"
           >
+            {getPersonalizedText(3) && (
+              <div className="mb-4 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10">
+                <p className="text-sm font-body text-primary font-medium text-center">
+                  {getPersonalizedText(3)}
+                </p>
+              </div>
+            )}
             <div className="space-y-6">
               {/* Music Style (multi-select) */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Music style <span className="text-text-muted text-sm font-normal">(select all that apply)</span>
+                  Music style <span className="text-primary">*</span> <span className="text-text-muted text-sm font-normal">(select all that apply)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -351,7 +386,7 @@ export default function CreateSong() {
               {/* Emotional Vibe (multi-select) */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Emotional vibe <span className="text-text-muted text-sm font-normal">(select all that apply)</span>
+                  Emotional vibe <span className="text-primary">*</span> <span className="text-text-muted text-sm font-normal">(select all that apply)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -378,7 +413,7 @@ export default function CreateSong() {
               {/* Voice Preference */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Voice preference
+                  Voice preference <span className="text-primary">*</span>
                 </label>
                 <div className="space-y-2">
                   {[
@@ -425,11 +460,18 @@ export default function CreateSong() {
             title="What makes them unforgettable to you?"
             subtitle="Help us capture what makes this person so special in your heart"
           >
+            {getPersonalizedText(4) && (
+              <div className="mb-4 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10">
+                <p className="text-sm font-body text-primary font-medium text-center">
+                  {getPersonalizedText(4)}
+                </p>
+              </div>
+            )}
             <div className="space-y-6">
               {/* Recipient Qualities */}
               <div>
                 <label htmlFor="recipient-qualities" className="block font-body font-semibold text-text-main mb-3">
-                  What qualities do you love most about them?
+                  What qualities do you love most about them? <span className="text-primary">*</span>
                 </label>
                 <textarea
                   id="recipient-qualities"
@@ -444,7 +486,7 @@ export default function CreateSong() {
               {/* Shared Memories */}
               <div>
                 <label htmlFor="shared-memories" className="block font-body font-semibold text-text-main mb-3">
-                  Is there a moment or journey that shaped your bond?
+                  Is there a moment or journey that shaped your bond? <span className="text-primary">*</span>
                 </label>
                 <textarea
                   id="shared-memories"
@@ -459,7 +501,7 @@ export default function CreateSong() {
               {/* Faith Expression Level */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Would you like faith reflected in a specific way?
+                  Would you like faith reflected in a specific way? <span className="text-primary">*</span>
                 </label>
                 <div className="step-4-faith-cards flex flex-col gap-4">
                   {[
@@ -490,6 +532,13 @@ export default function CreateSong() {
             title="If this song could say one thing for you…"
             subtitle="If they could only hear one message from your heart, what would you want them to know?"
           >
+            {getPersonalizedText(5) && (
+              <div className="mb-4 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10">
+                <p className="text-sm font-body text-primary font-medium text-center">
+                  {getPersonalizedText(5)}
+                </p>
+              </div>
+            )}
             <div className="space-y-6">
               {/* Core Message */}
               <div>
@@ -528,6 +577,77 @@ export default function CreateSong() {
                     </p>
                   </div>
                 </label>
+              </div>
+            </div>
+          </StepContainer>
+        );
+
+      case 6:
+        return (
+          <StepContainer
+            title="How can we deliver your song?"
+            subtitle="We need your contact details to send you the finished song and keep you updated on progress."
+          >
+            {getPersonalizedText(6) && (
+              <div className="mb-4 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10">
+                <p className="text-sm font-body text-primary font-medium text-center">
+                  {getPersonalizedText(6)}
+                </p>
+              </div>
+            )}
+            <div className="space-y-6">
+              {/* Full Name */}
+              <div>
+                <label htmlFor="contact-full-name" className="block font-body font-semibold text-text-main mb-3">
+                  Full Name <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="contact-full-name"
+                  value={intakeData.fullName}
+                  onChange={(e) => updateIntakeData('fullName', e.target.value)}
+                  placeholder="Enter your full name"
+                  className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                  required
+                />
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label htmlFor="contact-email" className="block font-body font-semibold text-text-main mb-3">
+                  Email Address <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="contact-email"
+                  value={intakeData.email}
+                  onChange={(e) => updateIntakeData('email', e.target.value)}
+                  placeholder="Enter your email address"
+                  className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                  required
+                />
+                <p className="text-sm text-text-muted mt-2">
+                  We'll send your custom song and order updates to this email.
+                </p>
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label htmlFor="contact-phone" className="block font-body font-semibold text-text-main mb-3">
+                  Phone Number <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="tel"
+                  id="contact-phone"
+                  value={intakeData.phoneNumber}
+                  onChange={(e) => updateIntakeData('phoneNumber', e.target.value)}
+                  placeholder="Enter your phone number"
+                  className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                  required
+                />
+                <p className="text-sm text-text-muted mt-2">
+                  For important updates about your order (we won't spam you).
+                </p>
               </div>
             </div>
           </StepContainer>

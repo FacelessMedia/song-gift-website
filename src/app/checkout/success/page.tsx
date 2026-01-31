@@ -16,6 +16,7 @@ interface OrderData {
   amount_paid: number;
   currency: string;
   delivery_speed: string;
+  intake_payload?: any;
 }
 
 function CheckoutSuccessContent() {
@@ -26,6 +27,45 @@ function CheckoutSuccessContent() {
   const [error, setError] = useState<string | null>(null);
   const [pollingAttempts, setPollingAttempts] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  // Generate personalized confirmation messaging
+  const getPersonalizedMessage = () => {
+    if (!orderData?.intake_payload) {
+      return {
+        primary: "You've just done something truly meaningful.",
+        secondary: "We're already working on a song that speaks from your heart."
+      };
+    }
+
+    const intake = orderData.intake_payload;
+    const buyerName = intake.fullName || 'there';
+    const recipientName = intake.recipientName;
+    const relationship = intake.recipientRelationship === 'other' 
+      ? intake.recipientCustomRelation 
+      : intake.recipientRelationship;
+
+    if (recipientName && relationship) {
+      return {
+        primary: `You've just done something meaningful for your ${relationship}, ${recipientName}.`,
+        secondary: "We're already working on a song that speaks from your heart to theirs."
+      };
+    }
+
+    return {
+      primary: "You've just done something truly meaningful.",
+      secondary: "We're already working on a song that speaks from your heart."
+    };
+  };
+
+  // Generate delivery context message
+  const getDeliveryMessage = () => {
+    if (!orderData) return "";
+    
+    const isExpress = orderData.delivery_speed === 'express';
+    const deliveryTime = isExpress ? 'within 24 hours' : 'within 48 hours';
+    
+    return `Your custom song will be delivered ${deliveryTime}, crafted with the care and attention it deserves.`;
+  };
 
   const fetchOrderData = async () => {
     if (!sessionId) {
@@ -173,9 +213,19 @@ function CheckoutSuccessContent() {
             Payment Successful! 🎉
           </h1>
           
-          <p className="font-body text-text-muted mb-8 text-lg">
-            Thank you for your order! Your custom song is now in production.
-          </p>
+          <div className="mb-8">
+            <p className="font-body text-text-main mb-4 text-lg font-medium">
+              {getPersonalizedMessage().primary}
+            </p>
+            <p className="font-body text-text-muted text-base">
+              {getPersonalizedMessage().secondary}
+            </p>
+            {orderData && (
+              <p className="font-body text-text-muted text-sm mt-4">
+                {getDeliveryMessage()}
+              </p>
+            )}
+          </div>
 
           {/* Order Details */}
           {orderData && (
@@ -238,7 +288,7 @@ function CheckoutSuccessContent() {
                   <div>
                     <p className="text-xs font-medium text-text-muted uppercase tracking-wide">Delivery Speed</p>
                     <p className="mt-1 font-semibold text-text-main capitalize">
-                      {orderData.delivery_speed === 'express' ? 'Rush (24-48h)' : 'Standard (48-72h)'}
+                      {orderData.delivery_speed === 'express' ? 'Delivered within 24 hours' : 'Delivered within 48 hours'}
                     </p>
                   </div>
                   <div>

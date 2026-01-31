@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Query Supabase orders table by stripe_checkout_session_id
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .select('tracking_id, order_status, expected_delivery_at, created_at, customer_email, amount_paid, currency, delivery_speed')
+      .select('tracking_id, order_status, expected_delivery_at, created_at, customer_email, amount_paid, currency, delivery_speed, intake_payload')
       .eq('stripe_checkout_session_id', session_id)
       .single();
 

@@ -17,6 +17,69 @@ export default function Checkout() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // Email validation
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Phone validation (basic - just check for digits and common formats)
+  const isValidPhone = (phone: string) => {
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    return cleanPhone.length >= 10 && phoneRegex.test(cleanPhone);
+  };
+
+  // Check if contact info is complete and valid
+  const isContactInfoValid = () => {
+    return intakeData.fullName.trim() !== '' &&
+           intakeData.email.trim() !== '' &&
+           isValidEmail(intakeData.email) &&
+           intakeData.phoneNumber.trim() !== '' &&
+           isValidPhone(intakeData.phoneNumber);
+  };
+
+  // Generate personalized message
+  const getPersonalizedMessage = () => {
+    if (!intakeData.recipientName || !intakeData.recipientRelationship) {
+      return "You're about to create a meaningful custom song.";
+    }
+
+    const name = intakeData.recipientName;
+    const relationship = intakeData.recipientRelationship === 'other' 
+      ? intakeData.recipientCustomRelation 
+      : intakeData.recipientRelationship;
+
+    return `You're about to create a meaningful song for your ${relationship}, ${name}.`;
+  };
+
+  // Generate Order Summary personalized message
+  const getOrderSummaryMessage = () => {
+    const buyerName = intakeData.fullName;
+    const recipientName = intakeData.recipientName;
+    const relationship = intakeData.recipientRelationship === 'other' 
+      ? intakeData.recipientCustomRelation 
+      : intakeData.recipientRelationship;
+
+    // If we have buyer name, recipient name, and relationship
+    if (buyerName && recipientName && relationship) {
+      return `${buyerName}, you're creating a heartfelt song for your ${relationship}, ${recipientName}.`;
+    }
+    
+    // If we have recipient name and relationship but no buyer name
+    if (recipientName && relationship) {
+      return `This song is being crafted especially for ${recipientName} — a beautiful gift from you.`;
+    }
+    
+    // If we only have relationship
+    if (relationship) {
+      return `You're creating something meaningful for your ${relationship}.`;
+    }
+    
+    // Fallback if no personalization data available
+    return null;
+  };
+
   useEffect(() => {
     if (isLoaded) {
       setIsIntakeComplete(!!intakeData.intakeCompletedAt);
@@ -123,7 +186,7 @@ export default function Checkout() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: 'customer@example.com', // TODO: Get from user input
+          email: intakeData.email,
           delivery_speed: intakeData.expressDelivery ? 'rush' : 'standard',
           intake_payload: intakeData,
         }),
@@ -159,8 +222,11 @@ export default function Checkout() {
             <h1 className="font-heading text-3xl font-bold text-text-main mb-2">
               Complete Your Order
             </h1>
-            <p className="font-body text-text-muted">
-              Review your song details and complete your purchase
+            <p className="font-body text-text-muted mb-4">
+              {getPersonalizedMessage()}
+            </p>
+            <p className="font-body text-text-muted text-sm">
+              This is a beautiful gift idea — let's finish it.
             </p>
             
             {/* Back to Intake Button */}
@@ -290,6 +356,15 @@ export default function Checkout() {
                   Order Summary
                 </h2>
                 
+                {/* Personalized Message */}
+                {getOrderSummaryMessage() && (
+                  <div className="mb-4 pb-4 border-b border-primary/10">
+                    <p className="font-body text-text-main text-base leading-relaxed">
+                      {getOrderSummaryMessage()}
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   {/* Product */}
                   <div className="flex justify-between items-center">
@@ -307,7 +382,7 @@ export default function Checkout() {
                   <div className="border-t border-primary/10 pt-4">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-body font-semibold text-text-main">Standard Delivery (24–48 hours)</h3>
+                        <h3 className="font-body font-semibold text-text-main">Standard Delivery</h3>
                         <p className="text-sm text-text-muted">Expected song delivery by: {getDeliveryDate()}</p>
                       </div>
                       <span className="font-body text-text-main">Free</span>
@@ -324,11 +399,11 @@ export default function Checkout() {
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-body font-semibold text-text-main">Express Delivery (12–24 hours)</span>
+                            <span className="font-body font-semibold text-text-main">Express Delivery</span>
                             <span className="bg-primary text-white text-xs px-2 py-1 rounded-full font-semibold">+$39</span>
                           </div>
                           <p className="text-sm text-text-muted">
-                            Get your song delivered within 12–24 hours instead of 24–48 hours.
+                            Get your song delivered within 24 hours instead of within 48 hours.
                           </p>
                           {intakeData.expressDelivery && (
                             <p className="text-sm text-primary font-semibold mt-2">

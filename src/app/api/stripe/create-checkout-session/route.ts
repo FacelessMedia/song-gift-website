@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         price_data: {
           currency: PRICING.CURRENCY,
           product_data: {
-            name: 'Rush Delivery (12-24 hours)',
+            name: 'Rush Delivery (within 24 hours)',
             description: 'Express delivery upgrade',
           },
           unit_amount: rushPrice,

@@ -20,7 +20,7 @@ export default function FAQ() {
     },
     {
       question: "How long does delivery take?",
-      answer: "Standard delivery is 24–48 hours and is included in your purchase. For faster delivery, we offer express delivery in 12–24 hours for an additional $39."
+      answer: "Standard delivery is within 48 hours and is included in your purchase. For faster delivery, we offer express delivery within 24 hours for an additional $39."
     },
     {
       question: "How will I receive my song?",

@@ -32,6 +32,11 @@ export interface IntakeData {
   // Checkout options
   expressDelivery: boolean;
   
+  // Contact information (required for checkout)
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  
   // Other steps (keeping existing for now)
   songType: string;
   recipient: string;

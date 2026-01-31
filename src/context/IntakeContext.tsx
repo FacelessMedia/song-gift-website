@@ -39,6 +39,11 @@ const defaultIntakeData: IntakeData = {
   // Checkout options
   expressDelivery: false,
   
+  // Contact information (required for checkout)
+  fullName: '',
+  email: '',
+  phoneNumber: '',
+  
   // Other steps (keeping existing for now)
   songType: '',
   recipient: '',
@@ -73,7 +78,11 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsedData = JSON.parse(stored);
-        setIntakeData(parsedData);
+        // Merge with default data to ensure all fields exist
+        setIntakeData({
+          ...defaultIntakeData,
+          ...parsedData
+        });
       }
     } catch (error) {
       console.error('Error loading intake data from localStorage:', error);
@@ -153,7 +162,7 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
       case 2:
         return intakeData.primaryLanguage !== '' && 
                intakeData.languageStyle !== '' &&
-               (intakeData.languageStyle !== 'bilingual-blend' || intakeData.secondaryLanguage !== '');
+               (intakeData.languageStyle === '100-primary' || intakeData.secondaryLanguage !== '');
       case 3:
         return intakeData.musicStyle.length > 0 && 
                intakeData.emotionalVibe.length > 0 && 
@@ -164,6 +173,10 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
                intakeData.faithExpressionLevel !== '';
       case 5:
         return intakeData.coreMessage.trim() !== '';
+      case 6:
+        return intakeData.fullName?.trim() !== '' && 
+               intakeData.email?.trim() !== '' && 
+               intakeData.phoneNumber?.trim() !== '';
       default:
         return false;
     }
@@ -171,7 +184,7 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
 
   // Find the first incomplete step
   const getFirstIncompleteStep = () => {
-    for (let step = 1; step <= 5; step++) {
+    for (let step = 1; step <= 6; step++) {
       if (!isStepValid(step)) {
         return step;
       }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, Source_Serif_4 } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { IntakeProvider } from "@/context/IntakeContext";
 
@@ -81,6 +82,14 @@ export default function RootLayout({
         <IntakeProvider>
           {children}
         </IntakeProvider>
+        
+        {/* GoHighLevel Chatbot (Hillary) */}
+        <Script
+          src="https://widgets.leadconnectorhq.com/loader.js"
+          data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
+          data-widget-id="697dc805a2eb73779455110e"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
