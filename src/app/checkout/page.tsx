@@ -179,14 +179,29 @@ export default function Checkout() {
     if (!isIntakeComplete) return;
 
     // Validate contact information before proceeding
-    if (!isContactInfoValid()) {
-      alert('Please ensure all contact information is valid before proceeding.');
+    if (!intakeData.fullName || !intakeData.fullName.trim()) {
+      alert('Please enter your full name before proceeding.');
       return;
     }
 
-    // Additional email validation
+    if (!intakeData.email || !intakeData.email.trim()) {
+      alert('Please enter your email address before proceeding.');
+      return;
+    }
+
     if (!isValidEmail(intakeData.email)) {
-      alert('Please enter a valid email address.');
+      alert('Please enter a valid email address (e.g., john@example.com).');
+      return;
+    }
+
+    if (!intakeData.phoneNumber || !intakeData.phoneNumber.trim()) {
+      alert('Please enter your phone number before proceeding.');
+      return;
+    }
+
+    // Additional comprehensive validation
+    if (!isContactInfoValid()) {
+      alert('Please ensure all contact information is complete and valid before proceeding.');
       return;
     }
 

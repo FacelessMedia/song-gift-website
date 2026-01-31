@@ -1,0 +1,44 @@
+{
+  "order": {
+    "tracking_id": "SG-A1B2C3D4",
+    "created_at": "2026-01-31T15:30:45.123Z",
+    "paid_at": "2026-01-31T15:30:45.123Z",
+    "order_status": "Paid",
+    "delivery_type": "standard",
+    "delivery_eta": "2026-02-02T15:30:45.123Z",
+    "payment_timestamp": "2026-01-31T15:30:45.123Z",
+    "amount_paid": 7900,
+    "currency": "usd",
+    "session_id": "sess_1769853479516_fvtfx9",
+    "stripe_checkout_session_id": "cs_test_1234567890abcdef",
+    "stripe_payment_intent_id": "pi_test_1234567890abcdef"
+  },
+  "customer": {
+    "name": "John Smith",
+    "email": "john.smith@example.com",
+    "phone": "+1-555-123-4567"
+  },
+  "intake": {
+    "recipientRelationship": "wife",
+    "recipientCustomRelation": "",
+    "recipientName": "Sarah",
+    "recipientNamePronunciation": "",
+    "songPerspective": "first-person",
+    "songPerspectiveCustom": "",
+    "primaryLanguage": "English",
+    "languageStyle": "primary-only",
+    "secondaryLanguage": "",
+    "musicStyle": ["acoustic", "pop"],
+    "emotionalVibe": ["romantic", "heartfelt"],
+    "voicePreference": "male",
+    "recipientQualities": "She's incredibly kind, always puts family first, and has the most beautiful smile that lights up any room.",
+    "sharedMemories": "Our first dance at our wedding, the way she laughs at my terrible jokes, and how she supported me through my career change.",
+    "faithExpressionLevel": "subtle",
+    "coreMessage": "I want her to know how grateful I am for her love and support, and that she's the best thing that ever happened to me.",
+    "fullName": "John Smith",
+    "email": "john.smith@example.com",
+    "phoneNumber": "+1-555-123-4567",
+    "expressDelivery": false,
+    "intakeCompletedAt": "2026-01-31T15:29:30.456Z"
+  }
+}

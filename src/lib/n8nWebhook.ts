@@ -4,18 +4,26 @@ const n8nWebhookUrl = process.env.N8N_ORDER_WEBHOOK_URL;
 const signingSecret = process.env.N8N_WEBHOOK_SIGNING_SECRET;
 
 export interface OrderWebhookPayload {
-  tracking_id: string;
-  created_at: string;
-  paid_at: string;
-  order_status: string;
-  expected_delivery_at: string;
-  delivery_speed: string;
-  amount_paid: number;
-  currency: string;
-  customer_email: string;
-  stripe_checkout_session_id: string;
-  stripe_payment_intent_id: string;
-  intake_payload: any;
+  order: {
+    tracking_id: string;
+    created_at: string;
+    paid_at: string;
+    order_status: string;
+    delivery_type: string;
+    delivery_eta: string;
+    payment_timestamp: string;
+    amount_paid: number;
+    currency: string;
+    session_id: string;
+    stripe_checkout_session_id: string;
+    stripe_payment_intent_id: string;
+  };
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  intake: any;
 }
 
 // Generate HMAC signature for webhook security
@@ -48,8 +56,8 @@ export async function sendOrderToN8n(orderData: OrderWebhookPayload): Promise<bo
 
     console.log('Sending order to n8n webhook:', {
       url: n8nWebhookUrl,
-      trackingId: orderData.tracking_id,
-      customerEmail: orderData.customer_email,
+      trackingId: orderData.order.tracking_id,
+      customerEmail: orderData.customer.email,
       hasSignature: !!signingSecret
     });
 
@@ -74,7 +82,7 @@ export async function sendOrderToN8n(orderData: OrderWebhookPayload): Promise<bo
   } catch (error) {
     console.error('Failed to send order to n8n webhook:', {
       error: error instanceof Error ? error.message : 'Unknown error',
-      trackingId: orderData.tracking_id,
+      trackingId: orderData.order.tracking_id,
       webhookUrl: n8nWebhookUrl
     });
     return false;

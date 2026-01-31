@@ -84,6 +84,10 @@ export async function POST(request: NextRequest) {
       let intakePayload = {};
       
       // Retrieve intake data using session ID from server storage
+      let customerName = '';
+      let extractedCustomerEmail = '';
+      let customerPhone = '';
+      
       if (frontendSessionId) {
         try {
           const sessionDataResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/session-data?sessionId=${frontendSessionId}`);
@@ -92,7 +96,14 @@ export async function POST(request: NextRequest) {
             const sessionDataResult = await sessionDataResponse.json();
             if (sessionDataResult.success && sessionDataResult.data) {
               intakePayload = sessionDataResult.data;
+              
+              // Extract customer contact info from intake data
+              customerName = intakePayload.fullName || '';
+              extractedCustomerEmail = intakePayload.email || '';
+              customerPhone = intakePayload.phoneNumber || '';
+              
               console.log('Retrieved full intake data for session:', frontendSessionId);
+              console.log('Customer contact info:', { customerName, extractedCustomerEmail, customerPhone });
             } else {
               console.warn('Session data not found for session:', frontendSessionId);
             }
@@ -115,11 +126,14 @@ export async function POST(request: NextRequest) {
         };
       }
 
+      // Use extracted email or fallback to Stripe session email
+      const finalCustomerEmail = extractedCustomerEmail || customerEmail || '';
+      
       // Validate required data
-      if (!sessionId || !customerEmail || !amountTotal || !deliverySpeed) {
+      if (!sessionId || !finalCustomerEmail || !amountTotal || !deliverySpeed) {
         console.error('Missing required session data:', {
           sessionId,
-          customerEmail,
+          finalCustomerEmail,
           amountTotal,
           deliverySpeed
         });
@@ -146,13 +160,16 @@ export async function POST(request: NextRequest) {
       const expectedDeliveryAt = calculateDeliveryDate(deliverySpeed);
       const paidAt = new Date();
 
-      // Insert order into Supabase
+      // Insert order into Supabase with customer contact fields and key intake fields
       const { data: order, error: insertError } = await supabaseAdmin
         .from('orders')
         .insert({
           tracking_id: trackingId,
           paid_at: paidAt.toISOString(),
-          customer_email: customerEmail,
+          customer_name: customerName,
+          customer_email: finalCustomerEmail,
+          customer_phone: customerPhone,
+          session_id: frontendSessionId,
           amount_paid: amountTotal,
           currency: currency,
           delivery_speed: deliverySpeed,
@@ -161,6 +178,16 @@ export async function POST(request: NextRequest) {
           intake_payload: intakePayload,
           stripe_checkout_session_id: sessionId,
           stripe_payment_intent_id: paymentIntentId,
+          // Extract key intake fields for easier querying
+          recipient_name: intakePayload.recipientName || '',
+          recipient_relationship: intakePayload.recipientRelationship || '',
+          song_perspective: intakePayload.songPerspective || '',
+          primary_language: intakePayload.primaryLanguage || '',
+          music_style: intakePayload.musicStyle || [],
+          emotional_vibe: intakePayload.emotionalVibe || [],
+          voice_preference: intakePayload.voicePreference || '',
+          faith_expression_level: intakePayload.faithExpressionLevel || '',
+          core_message: intakePayload.coreMessage || '',
         })
         .select()
         .single();
@@ -197,18 +224,29 @@ export async function POST(request: NextRequest) {
           console.log('Sending order to n8n webhook...');
           
           const webhookPayload = {
-            tracking_id: order.tracking_id,
-            created_at: order.created_at,
-            paid_at: order.paid_at,
-            order_status: order.order_status,
-            expected_delivery_at: order.expected_delivery_at,
-            delivery_speed: order.delivery_speed,
-            amount_paid: order.amount_paid,
-            currency: order.currency,
-            customer_email: order.customer_email,
-            stripe_checkout_session_id: order.stripe_checkout_session_id,
-            stripe_payment_intent_id: order.stripe_payment_intent_id,
-            intake_payload: order.intake_payload
+            // Order information
+            order: {
+              tracking_id: order.tracking_id,
+              created_at: order.created_at,
+              paid_at: order.paid_at,
+              order_status: order.order_status,
+              delivery_type: order.delivery_speed,
+              delivery_eta: order.expected_delivery_at,
+              payment_timestamp: order.paid_at,
+              amount_paid: order.amount_paid,
+              currency: order.currency,
+              session_id: order.session_id,
+              stripe_checkout_session_id: order.stripe_checkout_session_id,
+              stripe_payment_intent_id: order.stripe_payment_intent_id
+            },
+            // Customer contact information
+            customer: {
+              name: order.customer_name,
+              email: order.customer_email,
+              phone: order.customer_phone
+            },
+            // Complete intake form data
+            intake: order.intake_payload || {}
           };
 
           const webhookSuccess = await sendOrderToN8n(webhookPayload);
