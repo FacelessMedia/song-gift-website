@@ -98,9 +98,9 @@ export async function POST(request: NextRequest) {
               intakePayload = sessionDataResult.data;
               
               // Extract customer contact info from intake data
-              customerName = intakePayload.fullName || '';
-              extractedCustomerEmail = intakePayload.email || '';
-              customerPhone = intakePayload.phoneNumber || '';
+              customerName = (intakePayload as any).fullName || '';
+              extractedCustomerEmail = (intakePayload as any).email || '';
+              customerPhone = (intakePayload as any).phoneNumber || '';
               
               console.log('Retrieved full intake data for session:', frontendSessionId);
               console.log('Customer contact info:', { customerName, extractedCustomerEmail, customerPhone });
@@ -179,15 +179,15 @@ export async function POST(request: NextRequest) {
           stripe_checkout_session_id: sessionId,
           stripe_payment_intent_id: paymentIntentId,
           // Extract key intake fields for easier querying
-          recipient_name: intakePayload.recipientName || '',
-          recipient_relationship: intakePayload.recipientRelationship || '',
-          song_perspective: intakePayload.songPerspective || '',
-          primary_language: intakePayload.primaryLanguage || '',
-          music_style: intakePayload.musicStyle || [],
-          emotional_vibe: intakePayload.emotionalVibe || [],
-          voice_preference: intakePayload.voicePreference || '',
-          faith_expression_level: intakePayload.faithExpressionLevel || '',
-          core_message: intakePayload.coreMessage || '',
+          recipient_name: (intakePayload as any).recipientName || '',
+          recipient_relationship: (intakePayload as any).recipientRelationship || '',
+          song_perspective: (intakePayload as any).songPerspective || '',
+          primary_language: (intakePayload as any).primaryLanguage || '',
+          music_style: (intakePayload as any).musicStyle || [],
+          emotional_vibe: (intakePayload as any).emotionalVibe || [],
+          voice_preference: (intakePayload as any).voicePreference || '',
+          faith_expression_level: (intakePayload as any).faithExpressionLevel || '',
+          core_message: (intakePayload as any).coreMessage || '',
         })
         .select()
         .single();
