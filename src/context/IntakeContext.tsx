@@ -2,8 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { IntakeData } from '@/types/intake';
-
-const STORAGE_KEY = 'songGiftIntakeData';
+import { getSessionData, setSessionData, getIntakeDataKey } from '@/utils/sessionManager';
 
 const defaultIntakeData: IntakeData = {
   // Step 1: Who is this song meant to move?
@@ -72,26 +71,23 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
   const [intakeData, setIntakeData] = useState<IntakeData>(defaultIntakeData);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load data from localStorage on mount
+  // Load data from sessionStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsedData = JSON.parse(stored);
-        // Merge with default data to ensure all fields exist
-        setIntakeData({
-          ...defaultIntakeData,
-          ...parsedData
-        });
-      }
+      const storedData = getSessionData(getIntakeDataKey(), defaultIntakeData);
+      // Merge with default data to ensure all fields exist
+      setIntakeData({
+        ...defaultIntakeData,
+        ...storedData
+      });
     } catch (error) {
-      console.error('Error loading intake data from localStorage:', error);
+      console.error('Error loading intake data from sessionStorage:', error);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
-  // Save data to localStorage whenever it changes
+  // Save data to sessionStorage whenever it changes
   const updateIntakeData = (field: keyof IntakeData, value: string | boolean | string[]) => {
     setIntakeData(prev => {
       const updated = {
@@ -100,9 +96,9 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
       };
       
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        setSessionData(getIntakeDataKey(), updated);
       } catch (error) {
-        console.error('Error saving intake data to localStorage:', error);
+        console.error('Error saving intake data to sessionStorage:', error);
       }
       
       return updated;
@@ -113,19 +109,26 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
   const updateMultiSelectData = (field: keyof IntakeData, value: string) => {
     setIntakeData(prev => {
       const currentArray = prev[field] as string[];
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value];
+      let updated: IntakeData;
       
-      const updated = {
-        ...prev,
-        [field]: newArray
-      };
+      if (currentArray.includes(value)) {
+        // Remove if already selected
+        updated = {
+          ...prev,
+          [field]: currentArray.filter(item => item !== value)
+        };
+      } else {
+        // Add if not selected
+        updated = {
+          ...prev,
+          [field]: [...currentArray, value]
+        };
+      }
       
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        setSessionData(getIntakeDataKey(), updated);
       } catch (error) {
-        console.error('Error saving intake data to localStorage:', error);
+        console.error('Error saving intake data to sessionStorage:', error);
       }
       
       return updated;
@@ -142,7 +145,7 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
     setIntakeData(completedData);
     
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(completedData));
+      setSessionData(getIntakeDataKey(), completedData);
     } catch (error) {
       console.error('Error saving completed intake data:', error);
     }

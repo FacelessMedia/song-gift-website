@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Sans, Source_Serif_4 } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { IntakeProvider } from "@/context/IntakeContext";
+import { SessionInitializer } from "@/components/SessionInitializer";
 
 const playfairDisplay = Playfair_Display({
   variable: "--font-playfair-display",
@@ -79,6 +80,7 @@ export default function RootLayout({
       <body
         className={`${playfairDisplay.variable} ${dmSans.variable} ${sourceSerif4.variable} antialiased`}
       >
+        <SessionInitializer />
         <IntakeProvider>
           {children}
         </IntakeProvider>

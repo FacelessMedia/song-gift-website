@@ -9,6 +9,7 @@ import Footer from '@/components/sections/Footer';
 import { Button } from '@/components/ui/Button';
 import { SongDetailsModal } from '@/components/ui/SongDetailsModal';
 import { useIntakeData } from '@/hooks/useIntakeData';
+import { getSessionId } from '@/utils/sessionManager';
 
 
 export default function Checkout() {
@@ -177,24 +178,66 @@ export default function Checkout() {
   const handleCheckout = async () => {
     if (!isIntakeComplete) return;
 
+    // Validate contact information before proceeding
+    if (!isContactInfoValid()) {
+      alert('Please ensure all contact information is valid before proceeding.');
+      return;
+    }
+
+    // Additional email validation
+    if (!isValidEmail(intakeData.email)) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
     setIsProcessingPayment(true);
 
     try {
+      const sessionId = getSessionId();
+      
+      // Store session data on server before checkout
+      const sessionDataResponse = await fetch('/api/session-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          intakeData
+        }),
+      });
+
+      if (!sessionDataResponse.ok) {
+        console.error('Failed to store session data:', sessionDataResponse.status);
+        alert('Failed to prepare checkout. Please try again.');
+        setIsProcessingPayment(false);
+        return;
+      }
+
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          sessionId,
           email: intakeData.email,
           delivery_speed: intakeData.expressDelivery ? 'rush' : 'standard',
-          intake_payload: intakeData,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('Checkout session creation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: data.error,
+          details: data.details,
+          sessionId,
+          email: intakeData.email,
+          deliverySpeed: intakeData.expressDelivery ? 'rush' : 'standard'
+        });
         throw new Error(data.error || 'Failed to create checkout session');
       }
 

@@ -5,12 +5,25 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, delivery_speed, intake_payload } = body;
+    const { sessionId, email, delivery_speed } = body;
+
+    console.log('Creating checkout session with:', { sessionId, email, delivery_speed });
 
     // Validate required fields
-    if (!email || !delivery_speed || !intake_payload) {
+    if (!sessionId || !email || !delivery_speed) {
+      console.error('Missing required fields:', { sessionId, email, delivery_speed });
       return NextResponse.json(
-        { error: 'Missing required fields: email, delivery_speed, intake_payload' },
+        { error: 'Missing required fields: sessionId, email, delivery_speed' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error('Invalid email format:', email);
+      return NextResponse.json(
+        { error: 'Please provide a valid email address' },
         { status: 400 }
       );
     }
@@ -61,41 +74,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate a unique ID for this checkout session
-    const checkoutId = `checkout_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-
-    // Store intake data temporarily in Supabase with the checkout ID
-    const { error: storeError } = await supabaseAdmin
-      .from('temp_checkout_data')
-      .insert({
-        checkout_id: checkoutId,
-        intake_payload: intake_payload,
-        customer_email: email,
-        delivery_speed: dbDeliverySpeed,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-      });
-
-    if (storeError) {
-      console.error('Failed to store checkout data:', {
-        error: storeError,
-        code: storeError.code,
-        message: storeError.message,
-        details: storeError.details,
-        hint: storeError.hint
-      });
-      // Continue anyway - we'll use minimal metadata
-    }
-
-    // Create Stripe checkout session with minimal metadata
+    // Create Stripe checkout session with only sessionId in metadata
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: lineItems,
       customer_email: email,
       metadata: {
-        delivery_speed,
-        checkout_id: checkoutId, // Reference to full data
+        session_id: sessionId, // Only store session ID - webhook will retrieve full data
+        delivery_speed: dbDeliverySpeed,
       },
       success_url: `${request.nextUrl.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.nextUrl.origin}/checkout?canceled=1`,

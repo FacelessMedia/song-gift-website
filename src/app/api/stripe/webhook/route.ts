@@ -77,47 +77,40 @@ export async function POST(request: NextRequest) {
       const currency = session.currency;
       const metadata = session.metadata || {};
 
-      // Parse metadata
-      const clientDeliverySpeed = metadata.delivery_speed as 'standard' | 'rush';
-      const deliverySpeed = clientDeliverySpeed === 'rush' ? 'express' : 'standard';
-      const checkoutId = metadata.checkout_id;
+      // Parse metadata - now contains session_id instead of checkout_id
+      const frontendSessionId = metadata.session_id;
+      const deliverySpeed = metadata.delivery_speed as 'standard' | 'express';
       
       let intakePayload = {};
       
-      // Try to retrieve full intake data from temporary table
-      if (checkoutId) {
-        const { data: checkoutData, error: fetchError } = await supabaseAdmin
-          .from('temp_checkout_data')
-          .select('intake_payload, customer_email, delivery_speed')
-          .eq('checkout_id', checkoutId)
-          .single();
+      // Retrieve intake data using session ID from server storage
+      if (frontendSessionId) {
+        try {
+          const sessionDataResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/session-data?sessionId=${frontendSessionId}`);
           
-        if (fetchError) {
-          if (fetchError.code === 'PGRST116') {
-            console.log('No checkout data found in temporary storage (may have expired)');
+          if (sessionDataResponse.ok) {
+            const sessionDataResult = await sessionDataResponse.json();
+            if (sessionDataResult.success && sessionDataResult.data) {
+              intakePayload = sessionDataResult.data;
+              console.log('Retrieved full intake data for session:', frontendSessionId);
+            } else {
+              console.warn('Session data not found for session:', frontendSessionId);
+            }
           } else {
-            console.error('Failed to fetch checkout data:', fetchError);
+            console.warn('Failed to retrieve session data:', sessionDataResponse.status);
           }
-        } else if (checkoutData) {
-          intakePayload = checkoutData.intake_payload;
-          console.log('Retrieved full intake data from temporary storage');
-          
-          // Clean up temporary data after use
-          await supabaseAdmin
-            .from('temp_checkout_data')
-            .delete()
-            .eq('checkout_id', checkoutId);
-        } else {
-          console.log('No checkout data found in temporary storage');
+        } catch (fetchError) {
+          console.error('Error fetching session data:', fetchError);
         }
       }
       
       // Fallback: if no intake data found, create minimal payload
       if (!intakePayload || Object.keys(intakePayload).length === 0) {
-        console.warn('No intake data found, using minimal payload');
+        console.warn('No intake data found, using minimal payload for session:', frontendSessionId);
         intakePayload = {
-          recipientName: metadata.recipient_name || 'Unknown',
-          coreMessage: metadata.core_message || 'Custom song request',
+          sessionId: frontendSessionId,
+          recipientName: 'Unknown',
+          coreMessage: 'Custom song request',
           intakeCompletedAt: new Date().toISOString(),
         };
       }

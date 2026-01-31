@@ -6,6 +6,7 @@ import AnnouncementBar from '@/components/sections/AnnouncementBar';
 import Navigation from '@/components/navigation/Navigation';
 import Footer from '@/components/sections/Footer';
 import { Button } from '@/components/ui/Button';
+import { clearSessionData } from '@/utils/sessionManager';
 
 interface OrderData {
   tracking_id: string;
@@ -115,6 +116,10 @@ function CheckoutSuccessContent() {
         setTimeout(() => {
           setPollingAttempts(prev => prev + 1);
         }, 1000);
+      } else if (success) {
+        // Clear session data after successful order confirmation
+        clearSessionData();
+        console.log('Session data cleared after successful payment confirmation');
       }
     };
 
