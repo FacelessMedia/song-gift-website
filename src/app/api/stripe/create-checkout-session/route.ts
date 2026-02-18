@@ -98,49 +98,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build line items
+    // Build line items — apply coupon discount to the base price
+    const adjustedBasePrice = couponDiscount > 0 ? Math.max(basePrice - couponDiscount, 100) : basePrice;
+    const remainingDiscount = couponDiscount > 0 ? Math.max(couponDiscount - (basePrice - adjustedBasePrice), 0) : 0;
+
     const lineItems: any[] = [
       {
         price_data: {
           currency: PRICING.CURRENCY,
           product_data: {
-            name: 'Custom Song – Valentine\'s Special',
+            name: validatedCouponCode 
+              ? `Custom Song – Valentine's Special (Coupon: ${validatedCouponCode})`
+              : 'Custom Song – Valentine\'s Special',
             description: 'Personalized custom song created by professional musicians',
           },
-          unit_amount: basePrice,
+          unit_amount: adjustedBasePrice,
         },
         quantity: 1,
       },
     ];
 
-    // Add rush delivery if selected
+    // Add rush delivery if selected (reduce by remaining discount if coupon exceeded base price)
     if (delivery_speed === 'rush') {
-      lineItems.push({
-        price_data: {
-          currency: PRICING.CURRENCY,
-          product_data: {
-            name: 'Rush Delivery (within 24 hours)',
-            description: 'Express delivery upgrade',
+      const adjustedRushPrice = remainingDiscount > 0 ? Math.max(rushPrice - remainingDiscount, 0) : rushPrice;
+      if (adjustedRushPrice > 0) {
+        lineItems.push({
+          price_data: {
+            currency: PRICING.CURRENCY,
+            product_data: {
+              name: 'Rush Delivery (within 24 hours)',
+              description: 'Express delivery upgrade',
+            },
+            unit_amount: adjustedRushPrice,
           },
-          unit_amount: rushPrice,
-        },
-        quantity: 1,
-      });
-    }
-
-    // Add coupon discount as negative line item
-    if (couponDiscount > 0 && validatedCouponCode) {
-      lineItems.push({
-        price_data: {
-          currency: PRICING.CURRENCY,
-          product_data: {
-            name: `Coupon: ${validatedCouponCode}`,
-            description: 'Discount applied',
-          },
-          unit_amount: -couponDiscount,
-        },
-        quantity: 1,
-      });
+          quantity: 1,
+        });
+      }
     }
 
     // Create Stripe checkout session with only sessionId in metadata
