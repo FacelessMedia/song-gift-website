@@ -243,6 +243,13 @@ export default function Checkout() {
         return;
       }
 
+      // Fire "initiated" webhook to n8n (non-blocking — don't await or fail on error)
+      fetch('/api/webhook/initiated', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, intakeData }),
+      }).catch((err) => console.warn('Initiated webhook failed (non-blocking):', err));
+
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {

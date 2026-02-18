@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       session_id
     });
 
-    // Return order information
+    // Return order information (include intake_payload for success page personalization)
     return NextResponse.json({
       tracking_id: order.tracking_id,
       order_status: order.order_status,
@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
       customer_email: order.customer_email,
       amount_paid: order.amount_paid,
       currency: order.currency,
-      delivery_speed: order.delivery_speed
+      delivery_speed: order.delivery_speed,
+      intake_payload: order.intake_payload,
     });
 
   } catch (error) {

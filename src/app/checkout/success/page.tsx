@@ -90,7 +90,7 @@ function CheckoutSuccessContent() {
         setOrderData(data);
         setIsLoading(false);
         return true; // Success
-      } else if (data.code === 'ORDER_NOT_READY' && pollingAttempts < 15) {
+      } else if (data.code === 'ORDER_NOT_READY' && pollingAttempts < 30) {
         // Order not ready, continue polling
         return false;
       } else {
@@ -111,8 +111,8 @@ function CheckoutSuccessContent() {
     const pollForOrder = async () => {
       const success = await fetchOrderData();
       
-      if (!success && pollingAttempts < 15) {
-        // Continue polling every 1 second for up to 15 seconds
+      if (!success && pollingAttempts < 30) {
+        // Continue polling every 1 second for up to 30 seconds
         setTimeout(() => {
           setPollingAttempts(prev => prev + 1);
         }, 1000);

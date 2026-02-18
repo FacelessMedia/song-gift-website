@@ -38,10 +38,14 @@ function calculateDeliveryDate(deliverySpeed: 'standard' | 'express'): Date {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[STRIPE WEBHOOK] Received POST request');
+  
   try {
     // Get raw body for signature verification
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
+    
+    console.log('[STRIPE WEBHOOK] Body length:', body.length, '| Has signature:', !!signature);
 
     if (!signature) {
       console.error('Missing Stripe signature');
@@ -152,18 +156,16 @@ export async function POST(request: NextRequest) {
       // Use extracted email or fallback to Stripe session email
       const finalCustomerEmail = extractedCustomerEmail || customerEmail || '';
       
-      // Validate required data
+      // Validate required data — return 200 even on failure to prevent Stripe retries
       if (!sessionId || !finalCustomerEmail || !amountTotal || !deliverySpeed) {
-        console.error('Missing required session data:', {
+        console.error('[STRIPE WEBHOOK] Missing required session data:', {
           sessionId,
           finalCustomerEmail,
           amountTotal,
           deliverySpeed
         });
-        return NextResponse.json(
-          { error: 'Missing required session data' },
-          { status: 400 }
-        );
+        // Return 200 to Stripe so it doesn't retry — log the error for debugging
+        return NextResponse.json({ received: true, error: 'Missing required session data' });
       }
 
       // Check for existing order (idempotency)
@@ -236,7 +238,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (insertError) {
-        console.error('Failed to insert order:', {
+        console.error('[STRIPE WEBHOOK] Failed to insert order:', {
           error: insertError,
           code: insertError.code,
           message: insertError.message,
@@ -246,10 +248,8 @@ export async function POST(request: NextRequest) {
           customerEmail,
           trackingId
         });
-        return NextResponse.json(
-          { error: 'Failed to create order' },
-          { status: 500 }
-        );
+        // Return 200 to Stripe so it doesn't retry — log the error for debugging
+        return NextResponse.json({ received: true, error: 'Failed to create order', details: insertError.message });
       }
 
       console.log('Order created successfully:', {
@@ -288,6 +288,7 @@ export async function POST(request: NextRequest) {
           console.log('Sending order to n8n webhook...');
           
           const webhookPayload = {
+            status: 'paid' as const,
             // Order information
             order: {
               tracking_id: order.tracking_id,
@@ -357,13 +358,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true });
 
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Webhook processing failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    console.error('[STRIPE WEBHOOK] Unhandled processing error:', error);
+    // Return 200 to Stripe so it doesn't retry — prevents duplicate processing on retries
+    return NextResponse.json({ 
+      received: true, 
+      error: 'Webhook processing failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
