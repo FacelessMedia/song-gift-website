@@ -114,6 +114,29 @@ export default function Checkout() {
     }
   }, [isLoaded, intakeData.intakeCompletedAt]);
 
+  // Re-validate coupon when express delivery changes
+  useEffect(() => {
+    if (appliedCoupon) {
+      const newAmountCents = (intakeData.expressDelivery ? 79 + 39 : 79) * 100;
+      fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: appliedCoupon.code, original_amount: newAmountCents }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.valid) {
+            setAppliedCoupon(prev => prev ? {
+              ...prev,
+              discount_amount: data.discount_amount,
+              new_amount: data.new_amount,
+            } : null);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [intakeData.expressDelivery]);
+
   // Show loading state while data is being loaded
   if (!isLoaded) {
     return (
@@ -239,30 +262,6 @@ export default function Checkout() {
     setCouponCode('');
     setCouponError('');
   };
-
-  // Re-validate coupon when express delivery changes
-  useEffect(() => {
-    if (appliedCoupon) {
-      // Re-validate with new amount
-      const newAmountCents = (intakeData.expressDelivery ? discountedPrice + expressDeliveryFee : discountedPrice) * 100;
-      fetch('/api/validate-coupon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: appliedCoupon.code, original_amount: newAmountCents }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.valid) {
-            setAppliedCoupon(prev => prev ? {
-              ...prev,
-              discount_amount: data.discount_amount,
-              new_amount: data.new_amount,
-            } : null);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [intakeData.expressDelivery]);
 
   // Calculate delivery dates dynamically
   const getDeliveryDate = () => {
