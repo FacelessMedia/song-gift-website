@@ -23,10 +23,8 @@ interface OrderData {
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  const [isLoading, setIsLoading] = useState(true);
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pollingAttempts, setPollingAttempts] = useState(0);
+  const [pollingDone, setPollingDone] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Generate personalized confirmation messaging
@@ -68,63 +66,49 @@ function CheckoutSuccessContent() {
     return `Your custom song will be delivered ${deliveryTime}, crafted with the care and attention it deserves.`;
   };
 
-  const fetchOrderData = async () => {
-    if (!sessionId) {
-      setError('No session ID found in URL');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/orders/by-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setOrderData(data);
-        setIsLoading(false);
-        return true; // Success
-      } else if (data.code === 'ORDER_NOT_READY' && pollingAttempts < 30) {
-        // Order not ready, continue polling
-        return false;
-      } else {
-        setError(data.message || 'Failed to load order information');
-        setIsLoading(false);
-        return true; // Stop polling
-      }
-    } catch (err) {
-      setError('Something went wrong. Please try again later.');
-      setIsLoading(false);
-      return true; // Stop polling
-    }
-  };
-
   useEffect(() => {
     if (!sessionId) return;
 
-    const pollForOrder = async () => {
-      const success = await fetchOrderData();
-      
-      if (!success && pollingAttempts < 30) {
-        // Continue polling every 1 second for up to 30 seconds
-        setTimeout(() => {
-          setPollingAttempts(prev => prev + 1);
-        }, 1000);
-      } else if (success) {
-        // Clear session data after successful order confirmation
-        clearSessionData();
-        console.log('Session data cleared after successful payment confirmation');
+    // Clear session data immediately — payment succeeded
+    clearSessionData();
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20; // 20 seconds
+
+    const poll = async () => {
+      while (attempts < maxAttempts && !cancelled) {
+        try {
+          const response = await fetch('/api/orders/by-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.tracking_id) {
+            if (!cancelled) setOrderData(data);
+            return;
+          }
+        } catch {
+          // Network error — keep polling
+        }
+
+        attempts++;
+        if (attempts < maxAttempts && !cancelled) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
       }
+
+      // Polling exhausted — mark done so we show the graceful fallback
+      if (!cancelled) setPollingDone(true);
     };
 
-    pollForOrder();
-  }, [sessionId, pollingAttempts]);
+    poll();
+
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   const copyTrackingId = async () => {
     if (orderData?.tracking_id) {
@@ -138,61 +122,21 @@ function CheckoutSuccessContent() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <>
-        <AnnouncementBar />
-        <Navigation />
-        <main className="min-h-screen bg-background-soft flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="font-body text-text-muted">
-              {pollingAttempts > 0 ? 'Finalizing your order...' : 'Processing your order...'}
-            </p>
-            {pollingAttempts > 0 && (
-              <p className="font-body text-xs text-text-muted mt-2">
-                This may take a few moments
-              </p>
-            )}
-          </div>
-        </main>
-        <Footer />
-      </>
-    );
-  }
-
-  if (error) {
+  // No session_id at all — this is the only true error
+  if (!sessionId) {
     return (
       <>
         <AnnouncementBar />
         <Navigation />
         <main className="min-h-screen bg-background-soft">
           <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
             <h1 className="font-heading text-2xl font-bold text-text-main mb-4">
-              Unable to Load Order
+              No Order Found
             </h1>
-            <p className="font-body text-text-muted mb-8">{error}</p>
-            <div className="space-y-4">
-              <Button 
-                variant="primary" 
-                size="lg"
-                onClick={() => window.location.reload()}
-              >
-                Try Again
-              </Button>
-              <Button 
-                variant="outline" 
-                size="md"
-                onClick={() => window.location.href = '/track-order'}
-              >
-                Track Your Order
-              </Button>
-            </div>
+            <p className="font-body text-text-muted mb-8">We couldn't find a session for this page. If you just completed a purchase, please check your email for confirmation.</p>
+            <Button variant="primary" size="lg" onClick={() => window.location.href = '/'}>
+              Return Home
+            </Button>
           </div>
         </main>
         <Footer />
@@ -215,7 +159,7 @@ function CheckoutSuccessContent() {
           </div>
 
           <h1 className="font-heading text-3xl font-bold text-text-main mb-4">
-            Payment Successful! 🎉
+            Payment Received! 🎉
           </h1>
           
           <div className="mb-8">
@@ -232,8 +176,8 @@ function CheckoutSuccessContent() {
             )}
           </div>
 
-          {/* Order Details */}
-          {orderData && (
+          {/* Order Details — shown when webhook has processed */}
+          {orderData ? (
             <div className="bg-white rounded-2xl shadow-soft border border-primary/10 p-6 mb-8">
               <h2 className="font-heading text-xl font-semibold text-text-main mb-6">
                 Order Details
@@ -305,6 +249,27 @@ function CheckoutSuccessContent() {
                 </div>
               </div>
             </div>
+          ) : pollingDone ? (
+            /* Graceful fallback — webhook hasn't processed yet but payment succeeded */
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="font-heading text-lg font-semibold text-amber-900 mb-2">
+                We're finalizing your order.
+              </h2>
+              <p className="font-body text-amber-800 text-sm">
+                Your payment was successful. You will receive an email confirmation with your tracking ID shortly.
+              </p>
+            </div>
+          ) : (
+            /* Still polling — show subtle loading indicator */
+            <div className="bg-white rounded-2xl shadow-soft border border-primary/10 p-6 mb-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
+              <p className="font-body text-text-muted text-sm">Loading your order details...</p>
+            </div>
           )}
 
           <div className="bg-white rounded-2xl shadow-soft border border-primary/10 p-6 mb-8">
@@ -346,13 +311,23 @@ function CheckoutSuccessContent() {
           </div>
 
           <div className="space-y-4">
-            <Button 
-              variant="primary" 
-              size="lg"
-              onClick={() => window.location.href = `/track-order?tracking_id=${orderData?.tracking_id || ''}`}
-            >
-              Track My Order
-            </Button>
+            {orderData?.tracking_id ? (
+              <Button 
+                variant="primary" 
+                size="lg"
+                onClick={() => window.location.href = `/track-order?tracking_id=${orderData.tracking_id}`}
+              >
+                Track My Order
+              </Button>
+            ) : (
+              <Button 
+                variant="primary" 
+                size="lg"
+                onClick={() => window.location.href = '/track-order'}
+              >
+                Track My Order
+              </Button>
+            )}
             
             <Button 
               variant="outline" 
