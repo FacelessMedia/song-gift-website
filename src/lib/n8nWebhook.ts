@@ -18,6 +18,8 @@ export interface OrderWebhookPayload {
     session_id: string;
     stripe_checkout_session_id: string;
     stripe_payment_intent_id: string;
+    coupon_code: string | null;
+    coupon_discount: number;
   };
   customer: {
     name: string;

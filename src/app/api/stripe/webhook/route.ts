@@ -93,6 +93,8 @@ export async function POST(request: NextRequest) {
       // Parse metadata - now contains session_id instead of checkout_id
       const frontendSessionId = metadata.session_id;
       const deliverySpeed = metadata.delivery_speed as 'standard' | 'express';
+      const couponCode = metadata.coupon_code || null;
+      const couponDiscount = metadata.coupon_discount ? parseInt(metadata.coupon_discount, 10) : 0;
       
       let intakePayload = {};
       
@@ -233,6 +235,8 @@ export async function POST(request: NextRequest) {
           core_message: (intakePayload as any).coreMessage || '',
           gender: resolvedGender || null,
           gender_custom: rawGender === 'other' ? genderCustom : null,
+          coupon_code: couponCode,
+          coupon_discount: couponDiscount,
         })
         .select()
         .single();
@@ -302,7 +306,9 @@ export async function POST(request: NextRequest) {
               currency: order.currency,
               session_id: order.session_id,
               stripe_checkout_session_id: order.stripe_checkout_session_id,
-              stripe_payment_intent_id: order.stripe_payment_intent_id
+              stripe_payment_intent_id: order.stripe_payment_intent_id,
+              coupon_code: couponCode,
+              coupon_discount: couponDiscount,
             },
             // Customer contact information
             customer: {

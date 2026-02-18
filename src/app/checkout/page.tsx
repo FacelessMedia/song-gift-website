@@ -20,6 +20,18 @@ export default function Checkout() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    discount_amount: number;
+    new_amount: number;
+  } | null>(null);
+
   // Enhanced validation functions
   const validateName = (name: string): string => {
     const trimmed = name.trim();
@@ -167,8 +179,90 @@ export default function Checkout() {
   const expressDeliveryFee = 39;
   const savings = basePrice - discountedPrice;
   
-  // Calculate final total based on express delivery selection
-  const finalTotal = intakeData.expressDelivery ? discountedPrice + expressDeliveryFee : discountedPrice;
+  // Calculate subtotal before coupon (in dollars for display)
+  const subtotalBeforeCoupon = intakeData.expressDelivery ? discountedPrice + expressDeliveryFee : discountedPrice;
+  
+  // Calculate coupon discount in dollars for display
+  const couponDiscountDisplay = appliedCoupon ? Math.round(appliedCoupon.discount_amount / 100) : 0;
+  
+  // Final total after coupon
+  const finalTotal = appliedCoupon 
+    ? Math.round(appliedCoupon.new_amount / 100)
+    : subtotalBeforeCoupon;
+
+  // Handle coupon apply
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+
+    try {
+      // Calculate the amount in cents for server validation
+      const amountInCents = subtotalBeforeCoupon * 100;
+
+      const res = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, original_amount: amountInCents }),
+      });
+
+      const data = await res.json();
+
+      if (data.valid) {
+        setAppliedCoupon({
+          code: data.coupon_code,
+          discount_type: data.discount_type,
+          discount_value: data.discount_value,
+          discount_amount: data.discount_amount,
+          new_amount: data.new_amount,
+        });
+        setCouponError('');
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(data.error || 'Invalid coupon code');
+      }
+    } catch {
+      setCouponError('Failed to validate coupon. Please try again.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Remove applied coupon
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
+  // Re-validate coupon when express delivery changes
+  useEffect(() => {
+    if (appliedCoupon) {
+      // Re-validate with new amount
+      const newAmountCents = (intakeData.expressDelivery ? discountedPrice + expressDeliveryFee : discountedPrice) * 100;
+      fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: appliedCoupon.code, original_amount: newAmountCents }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.valid) {
+            setAppliedCoupon(prev => prev ? {
+              ...prev,
+              discount_amount: data.discount_amount,
+              new_amount: data.new_amount,
+            } : null);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [intakeData.expressDelivery]);
 
   // Calculate delivery dates dynamically
   const getDeliveryDate = () => {
@@ -259,6 +353,7 @@ export default function Checkout() {
           sessionId,
           email: intakeData.email,
           delivery_speed: intakeData.expressDelivery ? 'rush' : 'standard',
+          coupon_code: appliedCoupon?.code || null,
         }),
       });
 
@@ -501,12 +596,83 @@ export default function Checkout() {
                       <span className="font-body text-text-main">+${expressDeliveryFee}</span>
                     </div>
                   )}
+
+                  {/* Coupon Code Input */}
+                  <div className="border-t border-primary/10 pt-4">
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-body font-semibold text-green-800 text-sm">
+                            {appliedCoupon.code}
+                          </span>
+                          <span className="font-body text-green-600 text-sm">
+                            {appliedCoupon.discount_type === 'percentage'
+                              ? `(${appliedCoupon.discount_value}% off)`
+                              : `(-$${(appliedCoupon.discount_value / 100).toFixed(2)})`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="text-sm text-red-500 hover:text-red-700 font-medium cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block font-body text-sm font-medium text-text-main mb-2">
+                          Have a coupon code?
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              if (couponError) setCouponError('');
+                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                            placeholder="Enter code"
+                            className="flex-1 px-3 py-2.5 text-sm border border-primary/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white font-body uppercase placeholder:normal-case"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyCoupon}
+                            disabled={couponLoading || !couponCode.trim()}
+                            className="px-4 py-2.5 text-sm font-semibold font-body bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {couponLoading ? '...' : 'Apply'}
+                          </button>
+                        </div>
+                        {couponError && (
+                          <p className="text-sm text-red-500 mt-1.5 font-body">{couponError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Coupon Discount Line */}
+                  {appliedCoupon && couponDiscountDisplay > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="font-body font-semibold text-green-700">Coupon Discount</span>
+                      <span className="font-body font-semibold text-green-700">-${couponDiscountDisplay}</span>
+                    </div>
+                  )}
                   
                   {/* Total */}
                   <div className="border-t border-primary/10 pt-3">
                     <div className="flex justify-between items-center">
                       <span className="font-heading text-lg font-semibold text-text-main">Total</span>
-                      <span className="font-heading text-2xl font-bold text-primary">${finalTotal}</span>
+                      <div className="text-right">
+                        {appliedCoupon && (
+                          <span className="font-body text-sm text-text-muted line-through mr-2">${subtotalBeforeCoupon}</span>
+                        )}
+                        <span className="font-heading text-2xl font-bold text-primary">${finalTotal}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
