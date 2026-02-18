@@ -5,6 +5,8 @@ import "./globals.css";
 import { IntakeProvider } from "@/context/IntakeContext";
 import { SessionInitializer } from "@/components/SessionInitializer";
 import NewsletterPopupManager from "@/components/NewsletterManager";
+import { OrganizationSchema } from "@/components/schema/OrganizationSchema";
+import { WebSiteSchema } from "@/components/schema/WebSiteSchema";
 
 const playfairDisplay = Playfair_Display({
   variable: "--font-playfair-display",
@@ -81,6 +83,10 @@ export default function RootLayout({
       <body
         className={`${playfairDisplay.variable} ${dmSans.variable} ${sourceSerif4.variable} antialiased`}
       >
+        {/* Structured Data Schema */}
+        <OrganizationSchema />
+        <WebSiteSchema />
+        
         <SessionInitializer />
         <IntakeProvider>
           {children}

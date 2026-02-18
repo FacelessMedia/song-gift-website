@@ -12,6 +12,8 @@ const defaultIntakeData: IntakeData = {
   recipientNamePronunciation: '',
   songPerspective: '',
   songPerspectiveCustom: '',
+  gender: '',
+  genderCustom: '',
   
   // Step 2: What language should their heart hear this in?
   primaryLanguage: '',
@@ -21,7 +23,9 @@ const defaultIntakeData: IntakeData = {
   
   // Step 3: How should this song feel when it plays?
   musicStyle: [],
+  musicStyleCustom: '',
   emotionalVibe: [],
+  emotionalVibeCustom: '',
   voicePreference: '',
   musicInspirationNotes: '',
   
@@ -165,6 +169,8 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
         return intakeData.recipientRelationship !== '' && 
                intakeData.recipientName.trim() !== '' && 
                intakeData.songPerspective !== '' &&
+               intakeData.gender !== '' &&
+               (intakeData.gender !== 'other' || intakeData.genderCustom.trim() !== '') &&
                (intakeData.recipientRelationship !== 'other' || intakeData.recipientCustomRelation.trim() !== '') &&
                (intakeData.songPerspective !== 'other' || intakeData.songPerspectiveCustom.trim() !== '');
       case 2:
@@ -174,11 +180,12 @@ export function IntakeProvider({ children }: IntakeProviderProps) {
       case 3:
         return intakeData.musicStyle.length > 0 && 
                intakeData.emotionalVibe.length > 0 && 
-               intakeData.voicePreference !== '';
+               intakeData.voicePreference !== '' &&
+               (!intakeData.musicStyle.includes('other') || intakeData.musicStyleCustom.trim() !== '') &&
+               (!intakeData.emotionalVibe.includes('other') || intakeData.emotionalVibeCustom.trim() !== '');
       case 4:
         return intakeData.recipientQualities.trim() !== '' && 
-               intakeData.sharedMemories.trim() !== '' && 
-               intakeData.faithExpressionLevel !== '';
+               intakeData.sharedMemories.trim() !== '';
       case 5:
         return intakeData.coreMessage.trim() !== '';
       case 6:

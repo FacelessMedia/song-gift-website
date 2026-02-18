@@ -6,6 +6,8 @@ export interface IntakeData {
   recipientNamePronunciation: string;
   songPerspective: string;
   songPerspectiveCustom: string;
+  gender: string;
+  genderCustom: string;
   
   // Step 2: What language should their heart hear this in?
   primaryLanguage: string;
@@ -15,14 +17,16 @@ export interface IntakeData {
   
   // Step 3: How should this song feel when it plays?
   musicStyle: string[];
+  musicStyleCustom: string;
   emotionalVibe: string[];
+  emotionalVibeCustom: string;
   voicePreference: string;
   musicInspirationNotes: string;
   
   // Step 4: What makes them unforgettable to you?
   recipientQualities: string;
   sharedMemories: string;
-  faithExpressionLevel: string;
+  faithExpressionLevel: string; // Now optional — can be empty string or null
   
   // Step 5: If this song could say one thing for you...
   coreMessage: string;

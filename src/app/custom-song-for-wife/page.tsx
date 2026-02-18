@@ -6,7 +6,9 @@ import { SectionWrapper } from '@/components/ui/SectionWrapper';
 import { SectionHeading, SectionDescription } from '@/components/ui/Typography';
 import { Button } from '@/components/ui/Button';
 import { REVIEWS } from '@/data/reviews';
-import { ReviewCard } from '@/components/reviews/ReviewCard';
+import { ReviewsGrid } from '@/components/reviews/ReviewsGrid';
+import { RelatedPages } from '@/components/ui/RelatedPages';
+import { TrustStrip } from '@/components/ui/TrustStrip';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -143,15 +145,7 @@ export default function CustomSongForWife() {
               Wives Love Their Custom Songs
             </SectionHeading>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {relevantReviews.map((review) => (
-                <ReviewCard 
-                  key={review.id} 
-                  review={review} 
-                  variant="reviews-page"
-                />
-              ))}
-            </div>
+            <ReviewsGrid reviews={relevantReviews} variant="reviews-page" />
             
             <div className="text-center mt-12">
               <Link href="/reviews" className="font-body text-primary hover:text-primary-dark underline">
@@ -184,7 +178,51 @@ export default function CustomSongForWife() {
             </div>
           </div>
         </SectionWrapper>
+        
+        {/* Trust Strip */}
+        <SectionWrapper spacing="sm">
+          <div className="max-w-4xl mx-auto">
+            <TrustStrip />
+          </div>
+        </SectionWrapper>
       </main>
+
+      {/* Related Pages */}
+      <RelatedPages 
+        title="More Custom Song Gift Ideas"
+        pages={[
+          {
+            title: "Create Your Song",
+            href: "/create",
+            description: "Start creating your personalized song gift with our step-by-step process"
+          },
+          {
+            title: "Customer Reviews",
+            href: "/reviews",
+            description: "Read real stories from customers who've created unforgettable song gifts"
+          },
+          {
+            title: "Frequently Asked Questions",
+            href: "/faq",
+            description: "Get answers to common questions about our custom song creation process"
+          },
+          {
+            title: "Anniversary Song Gift",
+            href: "/anniversary-song-gift",
+            description: "Celebrate your journey together with a personalized anniversary song"
+          },
+          {
+            title: "Valentine's Day Song Gift",
+            href: "/valentines-day-song-gift",
+            description: "Give the most romantic Valentine's Day gift — a song written just for them"
+          },
+          {
+            title: "Custom Song for Girlfriend",
+            href: "/custom-song-for-girlfriend",
+            description: "Turn your love story into a song your girlfriend will treasure forever"
+          }
+        ]}
+      />
       
       <Footer />
     </>

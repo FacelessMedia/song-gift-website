@@ -8,6 +8,8 @@ import { SectionWrapper } from '@/components/ui/SectionWrapper';
 import { SectionHeading, SectionDescription } from '@/components/ui/Typography';
 import { REVIEWS } from '@/data/reviews';
 import { ReviewsGrid } from '@/components/reviews/ReviewsGrid';
+import { RelatedPages } from '@/components/ui/RelatedPages';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: "Customer Reviews & Stories",
@@ -81,6 +83,43 @@ export default function Reviews() {
           </div>
         </SectionWrapper>
       </main>
+
+      {/* Related Pages */}
+      <RelatedPages 
+        title="Create Your Perfect Song Gift"
+        pages={[
+          {
+            title: "Create Your Song",
+            href: "/create",
+            description: "Start creating your personalized song gift with our step-by-step process"
+          },
+          {
+            title: "Custom Song for Wife",
+            href: "/custom-song-for-wife",
+            description: "Show your wife how much she means to you with a personalized song"
+          },
+          {
+            title: "Valentine's Day Song Gift",
+            href: "/valentines-day-song-gift",
+            description: "Give the most romantic Valentine's Day gift — a song written just for them"
+          },
+          {
+            title: "Anniversary Song Gift",
+            href: "/anniversary-song-gift",
+            description: "Celebrate your love story with a custom anniversary song"
+          },
+          {
+            title: "Frequently Asked Questions",
+            href: "/faq",
+            description: "Get answers to common questions about our custom song creation process"
+          },
+          {
+            title: "Birthday Song Gift",
+            href: "/birthday-song-gift",
+            description: "Make their birthday unforgettable with a personalized song gift"
+          }
+        ]}
+      />
       
       {/* Footer */}
       <Footer />

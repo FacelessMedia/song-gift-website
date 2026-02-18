@@ -11,8 +11,8 @@ export default function WhatYouGet() {
   const [hasStartedOnce, setHasStartedOnce] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Use "Front Porch Promise" as the featured song
-  const featuredSong = SONGS[1]; // Front Porch Promise
+  // Use the second song alphabetically as the featured song
+  const featuredSong = SONGS[1];
 
   // Format time as mm:ss
   const formatTime = (time: number) => {

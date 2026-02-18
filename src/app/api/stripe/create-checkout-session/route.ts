@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, PRICING, calculateTotal } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { debugLog, debugLogResponse } from '@/lib/debugLogger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,12 @@ export async function POST(request: NextRequest) {
     const { sessionId, email, delivery_speed } = body;
 
     console.log('Creating checkout session with:', { sessionId, email, delivery_speed });
+
+    debugLog('CHECKOUT — incoming request', {
+      sessionId,
+      email,
+      delivery_speed,
+    });
 
     // Validate required fields
     if (!sessionId || !email || !delivery_speed) {
@@ -86,6 +93,14 @@ export async function POST(request: NextRequest) {
       },
       success_url: `${request.nextUrl.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.nextUrl.origin}/checkout?canceled=1`,
+    });
+
+    debugLog('CHECKOUT — Stripe session created', {
+      stripeSessionId: session.id,
+      url: session.url ? '[URL present]' : '[NO URL]',
+      metadata: { session_id: sessionId, delivery_speed: dbDeliverySpeed },
+      lineItemCount: lineItems.length,
+      totalAmount: totalPrice,
     });
 
     return NextResponse.json({ url: session.url });

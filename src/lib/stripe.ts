@@ -9,11 +9,22 @@ if (!stripeSecretKey) {
   throw new Error('Missing required environment variable: STRIPE_SECRET_KEY');
 }
 
+// Runtime mode detection — log once on server start
+const stripeMode = stripeSecretKey.startsWith('sk_live_') ? 'LIVE' : 'TEST';
+console.log(`[Stripe] Running in ${stripeMode} mode`);
+
+if (stripeMode === 'LIVE') {
+  console.log('[Stripe] ⚠️  LIVE MODE — real charges will be processed');
+}
+
 // Initialize Stripe with secret key
 export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2025-12-15.clover', // Use latest API version
   typescript: true,
 });
+
+// Export mode for use in other modules if needed
+export const STRIPE_MODE = stripeMode;
 
 // Pricing constants
 export const PRICING = {

@@ -66,6 +66,12 @@ export default function Navigation() {
               Reviews
             </button>
             <button 
+              onClick={() => handleNavigation('/playlist')}
+              className="font-body text-text-main hover:text-primary transition-colors"
+            >
+              Playlist
+            </button>
+            <button 
               onClick={() => handleNavigation('/faq')}
               className="font-body text-text-main hover:text-primary transition-colors"
             >
@@ -143,6 +149,12 @@ export default function Navigation() {
                 className="font-body text-text-main hover:text-primary transition-colors text-left py-2"
               >
                 Reviews
+              </button>
+              <button 
+                onClick={() => handleNavigation('/playlist')}
+                className="font-body text-text-main hover:text-primary transition-colors text-left py-2"
+              >
+                Playlist
               </button>
               <button 
                 onClick={() => handleNavigation('/faq')}

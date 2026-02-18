@@ -7,6 +7,8 @@ import Footer from '@/components/sections/Footer';
 import { ValentinesBanner } from '@/components/ui/ValentinesBanner';
 import { SectionWrapper } from '@/components/ui/SectionWrapper';
 import { SectionHeading, SectionDescription } from '@/components/ui/Typography';
+import { RelatedPages } from '@/components/ui/RelatedPages';
+import { FAQPageSchema } from '@/components/schema/FAQPageSchema';
 
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -120,9 +122,49 @@ export default function FAQ() {
           </div>
         </SectionWrapper>
       </main>
+
+      {/* Related Pages */}
+      <RelatedPages 
+        title="Explore Our Custom Song Services"
+        pages={[
+          {
+            title: "Create Your Song",
+            href: "/create",
+            description: "Start your personalized song journey with our easy step-by-step process"
+          },
+          {
+            title: "Customer Reviews",
+            href: "/reviews",
+            description: "Read real stories from customers who've created unforgettable song gifts"
+          },
+          {
+            title: "Custom Song for Girlfriend",
+            href: "/custom-song-for-girlfriend",
+            description: "Turn your love story into a song your girlfriend will treasure forever"
+          },
+          {
+            title: "Custom Song for Husband",
+            href: "/custom-song-for-husband",
+            description: "Create a meaningful song that captures what your husband means to you"
+          },
+          {
+            title: "Anniversary Song Gift",
+            href: "/anniversary-song-gift",
+            description: "Celebrate your journey together with a personalized anniversary song"
+          },
+          {
+            title: "Birthday Song Gift",
+            href: "/birthday-song-gift",
+            description: "Give them a birthday gift they'll remember forever — their own song"
+          }
+        ]}
+      />
       
       {/* Footer */}
       <Footer />
+      
+      {/* FAQ Page Schema */}
+      <FAQPageSchema />
     </>
   );
 }

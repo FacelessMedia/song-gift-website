@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { SongDetailsModal } from '@/components/ui/SongDetailsModal';
 import { useIntakeData } from '@/hooks/useIntakeData';
 import { getSessionId } from '@/utils/sessionManager';
-import { isValidPhoneNumber } from 'libphonenumber-js';
+import { ProductSchema } from '@/components/schema/ProductSchema';
+import { TrustStrip } from '@/components/ui/TrustStrip';
 
 
 export default function Checkout() {
@@ -48,9 +49,8 @@ export default function Checkout() {
     const nameError = validateName(intakeData.fullName || '');
     const emailError = validateEmail(intakeData.email || '');
     
-    // Check phone validation - prefer E.164 format if available
-    const hasValidPhone = intakeData.customer_phone_e164 || 
-                         (intakeData.phoneNumber && isValidPhoneNumber(intakeData.phoneNumber));
+    // Check phone validation — E.164 format stored by PhoneInput component
+    const hasValidPhone = !!(intakeData.customer_phone_e164 || intakeData.phoneNumber);
     
     return !nameError && !emailError && hasValidPhone;
   };
@@ -213,8 +213,8 @@ export default function Checkout() {
       return;
     }
 
-    // If we have E.164 format, it's already validated; otherwise check basic format
-    if (!intakeData.customer_phone_e164 && !isValidPhoneNumber(intakeData.phoneNumber)) {
+    // Phone was already validated by the PhoneInput component at intake time
+    if (!intakeData.customer_phone_e164 && !intakeData.phoneNumber) {
       alert('Please enter a valid phone number with country code.');
       return;
     }
@@ -503,6 +503,11 @@ export default function Checkout() {
                     </div>
                   </div>
                 </div>
+                
+                {/* Trust Strip */}
+                <div className="mt-4 pt-4 border-t border-primary/10">
+                  <TrustStrip variant="compact" />
+                </div>
               </div>
 
               {/* Your Song Details */}
@@ -598,6 +603,12 @@ export default function Checkout() {
       <SongDetailsModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+      />
+      
+      {/* Product Schema */}
+      <ProductSchema 
+        name="Custom Song Gift - Checkout"
+        description="Complete your custom song order. Professional musicians will create your personalized song and deliver it via email in 24-48 hours."
       />
     </>
   );

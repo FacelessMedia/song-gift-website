@@ -22,6 +22,19 @@ export interface OrderWebhookPayload {
     name: string;
     email: string;
     phone: string;
+    gender: string | null;
+    gender_custom: string | null;
+  };
+  song_details?: {
+    recipient_name: string;
+    recipient_relationship: string;
+    song_perspective: string;
+    primary_language: string;
+    music_style: string[];
+    emotional_vibe: string[];
+    voice_preference: string;
+    faith_expression_level: string | null;
+    core_message: string;
   };
   intake: any;
 }

@@ -7,7 +7,8 @@ import Navigation from '@/components/navigation/Navigation';
 import { ProgressHeader, StepContainer, OptionButton, NavigationFooter } from '@/components/ui/intake';
 import { useIntakeData } from '@/hooks/useIntakeData';
 import PhoneInputComponent from '@/components/ui/PhoneInput';
-import { isValidPhoneNumber } from 'libphonenumber-js';
+import { ProductSchema } from '@/components/schema/ProductSchema';
+import { TrustStrip } from '@/components/ui/TrustStrip';
 
 // Note: This is a client component, so metadata should be handled in layout.tsx or a parent server component
 export default function CreateSong() {
@@ -172,6 +173,8 @@ export default function CreateSong() {
         return intakeData.recipientRelationship !== '' && 
                intakeData.recipientName.trim() !== '' && 
                intakeData.songPerspective !== '' &&
+               intakeData.gender !== '' &&
+               (intakeData.gender !== 'other' || intakeData.genderCustom.trim() !== '') &&
                (intakeData.recipientRelationship !== 'other' || intakeData.recipientCustomRelation.trim() !== '');
       case 2:
         return intakeData.primaryLanguage !== '' && 
@@ -180,11 +183,12 @@ export default function CreateSong() {
       case 3:
         return intakeData.musicStyle.length > 0 && 
                intakeData.emotionalVibe.length > 0 && 
-               intakeData.voicePreference !== '';
+               intakeData.voicePreference !== '' &&
+               (!intakeData.musicStyle.includes('other') || intakeData.musicStyleCustom.trim() !== '') &&
+               (!intakeData.emotionalVibe.includes('other') || intakeData.emotionalVibeCustom.trim() !== '');
       case 4:
         return intakeData.recipientQualities.trim() !== '' && 
-               intakeData.sharedMemories.trim() !== '' && 
-               intakeData.faithExpressionLevel !== '';
+               intakeData.sharedMemories.trim() !== '';
       case 5:
         return intakeData.coreMessage.trim() !== '';
       case 6:
@@ -329,6 +333,52 @@ export default function CreateSong() {
                   </div>
                 )}
               </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block font-body font-semibold text-text-main mb-3">
+                  What is their gender? <span className="text-primary">*</span>
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+                    { value: 'other', label: 'Other' }
+                  ].map((option) => (
+                    <OptionButton
+                      key={option.value}
+                      value={option.value}
+                      label={option.label}
+                      isSelected={intakeData.gender === option.value}
+                      onClick={(value) => {
+                        updateIntakeData('gender', value);
+                        if (value !== 'other') {
+                          updateIntakeData('genderCustom', '');
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Custom Gender (conditional) */}
+                {intakeData.gender === 'other' && (
+                  <div className="mt-4">
+                    <label htmlFor="custom-gender" className="block font-body font-semibold text-text-main mb-3">
+                      Please specify <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="custom-gender"
+                      value={intakeData.genderCustom}
+                      onChange={(e) => updateIntakeData('genderCustom', e.target.value)}
+                      placeholder="Enter your gender"
+                      className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </StepContainer>
         );
@@ -452,19 +502,43 @@ export default function CreateSong() {
                     { value: 'rap-spoken-word', label: 'Rap / Spoken Word' },
                     { value: 'r&b-soul', label: 'R&B / Soul' },
                     { value: 'country', label: 'Country' },
-                    { value: 'cinematic', label: 'Cinematic' }
+                    { value: 'cinematic', label: 'Cinematic' },
+                    { value: 'other', label: 'Other' }
                   ].map((option) => (
                     <OptionButton
                       key={option.value}
                       value={option.value}
                       label={option.label}
                       isSelected={intakeData.musicStyle.includes(option.value)}
-                      onClick={(value) => updateMultiSelectData('musicStyle', value)}
+                      onClick={(value) => {
+                        updateMultiSelectData('musicStyle', value);
+                        if (value === 'other' && intakeData.musicStyle.includes('other')) {
+                          updateIntakeData('musicStyleCustom', '');
+                        }
+                      }}
                       multiSelect={true}
                       className="p-3"
                     />
                   ))}
                 </div>
+
+                {/* Custom Music Style (conditional) */}
+                {intakeData.musicStyle.includes('other') && (
+                  <div className="mt-4">
+                    <label htmlFor="custom-music-style" className="block font-body font-semibold text-text-main mb-3">
+                      Describe your preferred music style <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="custom-music-style"
+                      value={intakeData.musicStyleCustom}
+                      onChange={(e) => updateIntakeData('musicStyleCustom', e.target.value)}
+                      placeholder="e.g., Afrobeats, Lo-fi, Jazz, etc."
+                      className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                      required
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Emotional Vibe (multi-select) */}
@@ -479,19 +553,43 @@ export default function CreateSong() {
                     { value: 'joyful', label: 'Joyful' },
                     { value: 'reflective', label: 'Reflective' },
                     { value: 'comforting', label: 'Comforting' },
-                    { value: 'victorious', label: 'Victorious' }
+                    { value: 'victorious', label: 'Victorious' },
+                    { value: 'other', label: 'Other' }
                   ].map((option) => (
                     <OptionButton
                       key={option.value}
                       value={option.value}
                       label={option.label}
                       isSelected={intakeData.emotionalVibe.includes(option.value)}
-                      onClick={(value) => updateMultiSelectData('emotionalVibe', value)}
+                      onClick={(value) => {
+                        updateMultiSelectData('emotionalVibe', value);
+                        if (value === 'other' && intakeData.emotionalVibe.includes('other')) {
+                          updateIntakeData('emotionalVibeCustom', '');
+                        }
+                      }}
                       multiSelect={true}
                       className="p-3"
                     />
                   ))}
                 </div>
+
+                {/* Custom Emotional Vibe (conditional) */}
+                {intakeData.emotionalVibe.includes('other') && (
+                  <div className="mt-4">
+                    <label htmlFor="custom-emotional-vibe" className="block font-body font-semibold text-text-main mb-3">
+                      Describe the emotional vibe you want <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="custom-emotional-vibe"
+                      value={intakeData.emotionalVibeCustom}
+                      onChange={(e) => updateIntakeData('emotionalVibeCustom', e.target.value)}
+                      placeholder="e.g., Nostalgic, Bittersweet, Empowering, etc."
+                      className="w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft"
+                      required
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Voice Preference */}
@@ -582,10 +680,10 @@ export default function CreateSong() {
                 />
               </div>
 
-              {/* Faith Expression Level */}
+              {/* Faith Expression Level (optional) */}
               <div>
                 <label className="block font-body font-semibold text-text-main mb-3">
-                  Would you like faith reflected in a specific way? <span className="text-primary">*</span>
+                  Would you like faith reflected in a specific way? <span className="text-text-muted text-sm font-normal">(optional)</span>
                 </label>
                 <div className="step-4-faith-cards flex flex-col gap-4">
                   {[
@@ -599,12 +697,22 @@ export default function CreateSong() {
                         label={option.label}
                         description={option.description}
                         isSelected={intakeData.faithExpressionLevel === option.value}
-                        onClick={(value) => updateIntakeData('faithExpressionLevel', value)}
+                        onClick={(value) => {
+                          // Toggle off if already selected (since it's optional)
+                          if (intakeData.faithExpressionLevel === value) {
+                            updateIntakeData('faithExpressionLevel', '');
+                          } else {
+                            updateIntakeData('faithExpressionLevel', value);
+                          }
+                        }}
                         className="w-full"
                       />
                     </div>
                   ))}
                 </div>
+                <p className="text-sm text-text-muted mt-2">
+                  You can skip this if faith isn't relevant to your song.
+                </p>
               </div>
             </div>
           </StepContainer>
@@ -799,6 +907,10 @@ export default function CreateSong() {
           />
         </div>
       </main>
+      <ProductSchema 
+        name="Custom Song Creation Service"
+        description="Create your personalized song with our step-by-step process. Professional musicians craft unique songs from your love story in 24-48 hours."
+      />
     </>
   );
 }

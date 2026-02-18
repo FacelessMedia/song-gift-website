@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# source song files (copies live in public/Musical-Content/Songs/)
+/SongGift.app 38 songs/

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 /**
- * API endpoint to receive session data from frontend before checkout
- * This allows the webhook to access the full intake data later
+ * API endpoint to receive session data from frontend before checkout.
+ * Stores intake data in Supabase so the Stripe webhook (which may run
+ * on a different serverless instance) can retrieve it reliably.
  */
-
-// In-memory storage for session data (temporary solution)
-// In production, you'd use Redis or a proper cache
-const sessionDataStore = new Map<string, any>();
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,21 +19,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store session data with expiration (1 hour)
-    const sessionEntry = {
-      data: intakeData,
-      timestamp: Date.now(),
-      expiresAt: Date.now() + (60 * 60 * 1000) // 1 hour
-    };
+    // Upsert session data into Supabase with 2-hour expiry
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
-    sessionDataStore.set(sessionId, sessionEntry);
+    const { error: upsertError } = await supabaseAdmin
+      .from('session_data')
+      .upsert(
+        {
+          session_id: sessionId,
+          intake_data: intakeData,
+          expires_at: expiresAt,
+        },
+        { onConflict: 'session_id' }
+      );
 
-    // Clean up expired entries
-    for (const [key, entry] of sessionDataStore.entries()) {
-      if (entry.expiresAt < Date.now()) {
-        sessionDataStore.delete(key);
-      }
+    if (upsertError) {
+      console.error('Failed to store session data in Supabase:', upsertError);
+      return NextResponse.json(
+        { error: 'Failed to store session data' },
+        { status: 500 }
+      );
     }
+
+    // Opportunistic cleanup of expired rows (non-blocking, fire-and-forget)
+    supabaseAdmin
+      .from('session_data')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+      .then(() => {});
 
     return NextResponse.json({ success: true });
 
@@ -60,9 +71,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sessionEntry = sessionDataStore.get(sessionId);
+    const { data: sessionEntry, error: fetchError } = await supabaseAdmin
+      .from('session_data')
+      .select('intake_data, expires_at')
+      .eq('session_id', sessionId)
+      .single();
 
-    if (!sessionEntry) {
+    if (fetchError || !sessionEntry) {
+      console.warn('Session data not found for:', sessionId, fetchError?.message);
       return NextResponse.json(
         { error: 'Session data not found or expired' },
         { status: 404 }
@@ -70,20 +86,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if expired
-    if (sessionEntry.expiresAt < Date.now()) {
-      sessionDataStore.delete(sessionId);
+    if (new Date(sessionEntry.expires_at) < new Date()) {
+      // Clean up expired entry
+      await supabaseAdmin
+        .from('session_data')
+        .delete()
+        .eq('session_id', sessionId);
+
       return NextResponse.json(
         { error: 'Session data expired' },
         { status: 404 }
       );
     }
 
-    // Remove from store after retrieval (one-time use)
-    sessionDataStore.delete(sessionId);
-
-    return NextResponse.json({ 
-      success: true, 
-      data: sessionEntry.data 
+    return NextResponse.json({
+      success: true,
+      data: sessionEntry.intake_data,
     });
 
   } catch (error) {

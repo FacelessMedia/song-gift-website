@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { debugLog, debugLogPayload } from '@/lib/debugLogger';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -80,6 +81,13 @@ export async function POST(request: NextRequest) {
     const sessionId = request.headers.get('x-session-id') || body.session_id || null;
     const createdAt = new Date().toISOString();
 
+    debugLog('NEWSLETTER — subscribe request', {
+      email: trimmedEmail,
+      sessionId,
+      pagePath: page_path || '/',
+      timestamp: createdAt,
+    });
+
     // Insert into Supabase
     const { data: subscription, error: insertError } = await supabaseAdmin
       .from('newsletter_subscribers')
@@ -122,6 +130,13 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Newsletter subscription created:', subscription.id);
+
+    debugLog('NEWSLETTER — subscription saved to Supabase', {
+      subscriptionId: subscription.id,
+      email: subscription.email,
+      sessionId: subscription.session_id,
+      pagePath: subscription.page_path,
+    });
 
     // Send to webhook
     await sendToWebhook({

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import PhoneInput from 'react-phone-number-input';
-import { parsePhoneNumber, isValidPhoneNumber, getCountryCallingCode } from 'libphonenumber-js';
-// CSS is imported in globals.css to avoid @import issues
+import React from 'react';
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 interface PhoneInputComponentProps {
   value: string;
@@ -22,112 +21,136 @@ export default function PhoneInputComponent({
   placeholder = "Enter your phone number",
   className = "",
   error,
-  onBlur
+  onBlur,
 }: PhoneInputComponentProps) {
-  const [defaultCountry, setDefaultCountry] = useState<string>('PK');
+  const hasError = !!error;
 
-  // Detect user's country from browser locale
-  useEffect(() => {
-    try {
-      const locale = navigator.language || 'en-PK';
-      const countryCode = locale.split('-')[1];
-      
-      // Map common country codes
-      const countryMap: { [key: string]: string } = {
-        'US': 'US',
-        'PK': 'PK',
-        'GB': 'GB',
-        'CA': 'CA',
-        'AU': 'AU',
-        'IN': 'IN',
-        'AE': 'AE',
-        'SA': 'SA'
-      };
-      
-      setDefaultCountry(countryMap[countryCode] || 'PK');
-    } catch (error) {
-      console.log('Could not detect country, defaulting to PK');
-      setDefaultCountry('PK');
-    }
-  }, []);
-
-  const handlePhoneChange = (phoneValue: string | undefined) => {
-    const phone = phoneValue || '';
+  const handleChange = (
+    phone: string,
+    meta: { country: { iso2: string; dialCode: string; name: string }; inputValue: string }
+  ) => {
     onChange(phone);
 
-    if (phone) {
-      try {
-        const isValid = isValidPhoneNumber(phone);
-        
-        if (isValid) {
-          const phoneNumber = parsePhoneNumber(phone);
-          const e164 = phoneNumber.format('E.164');
-          const display = phoneNumber.formatInternational();
-          const country = phoneNumber.country;
-          
-          onValidationChange(true, e164, display, country);
-        } else {
-          onValidationChange(false);
-        }
-      } catch (error) {
-        onValidationChange(false);
-      }
+    // Validate: must have digits beyond just the country code prefix
+    const digitCount = phone.replace(/\D/g, '').length;
+    const isValid = digitCount >= 7 && phone.startsWith('+');
+
+    if (isValid) {
+      const display = meta.inputValue;
+      const countryCode = meta.country.iso2.toUpperCase();
+      onValidationChange(true, phone, display, countryCode);
     } else {
       onValidationChange(false);
     }
   };
 
   return (
-    <div className="relative">
+    <div className={className}>
       <PhoneInput
-        international
-        defaultCountry={defaultCountry as any}
+        defaultCountry="us"
         value={value}
-        onChange={handlePhoneChange}
-        onBlur={onBlur}
+        onChange={handleChange}
         placeholder={placeholder}
-        className={`phone-input ${className} ${error ? 'phone-input-error' : ''}`}
-        numberInputProps={{
-          className: "w-full px-4 py-3 text-base border border-primary/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white shadow-soft pl-16"
+        inputProps={{
+          onBlur,
         }}
       />
-      
+
       {error && (
         <p className="text-sm text-red-600 mt-2">{error}</p>
       )}
-      
+
       <style jsx global>{`
-        .phone-input {
-          position: relative;
+        /* SongGift phone input overrides */
+        .react-international-phone-input-container {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          border: 1px solid ${hasError ? '#ef4444' : 'rgba(194, 24, 91, 0.2)'};
+          border-radius: 1rem;
+          background: #fff;
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          overflow: hidden;
+          transition: border-color 0.15s, box-shadow 0.15s;
         }
-        
-        .phone-input .PhoneInputCountrySelect {
-          position: absolute;
-          left: 8px;
-          top: 50%;
-          transform: translateY(-50%);
-          z-index: 10;
-          border: none;
-          background: transparent;
-          padding: 4px;
-          border-radius: 4px;
+
+        .react-international-phone-input-container:focus-within {
+          border-color: transparent;
+          box-shadow: 0 0 0 2px #c2185b;
         }
-        
-        .phone-input .PhoneInputCountrySelect:focus {
-          outline: none;
-          box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.2);
+
+        .react-international-phone-country-selector-button {
+          border: none !important;
+          background: transparent !important;
+          padding: 0.75rem 0.5rem 0.75rem 0.75rem !important;
+          margin: 0 !important;
+          height: auto !important;
+          border-right: 1px solid rgba(194, 24, 91, 0.1) !important;
+          border-radius: 0 !important;
+          cursor: pointer;
         }
-        
-        .phone-input .PhoneInputCountrySelectArrow {
-          display: none;
+
+        .react-international-phone-country-selector-button:hover {
+          background: rgba(194, 24, 91, 0.05) !important;
         }
-        
-        .phone-input-error input {
-          border-color: #ef4444 !important;
+
+        .react-international-phone-country-selector-button__flag-emoji {
+          margin-right: 2px;
         }
-        
-        .phone-input-error .PhoneInputCountrySelect {
-          border-color: #ef4444;
+
+        .react-international-phone-country-selector-button__dropdown-arrow {
+          border-top-color: #6b7280 !important;
+          margin-left: 4px;
+        }
+
+        .react-international-phone-input {
+          border: none !important;
+          background: transparent !important;
+          padding: 0.75rem !important;
+          font-size: 1rem !important;
+          line-height: 1.5 !important;
+          color: #374151 !important;
+          width: 100% !important;
+          height: auto !important;
+          font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif !important;
+        }
+
+        .react-international-phone-input::placeholder {
+          color: rgba(107, 114, 128, 0.6) !important;
+        }
+
+        .react-international-phone-input:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+
+        .react-international-phone-country-selector-dropdown {
+          border-radius: 1rem !important;
+          border: 1px solid rgba(194, 24, 91, 0.2) !important;
+          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+          margin-top: 4px !important;
+          z-index: 50 !important;
+          overflow: hidden !important;
+          max-height: 250px !important;
+        }
+
+        .react-international-phone-country-selector-dropdown__list-item {
+          padding: 0.5rem 0.75rem !important;
+          font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif !important;
+          font-size: 0.875rem !important;
+        }
+
+        .react-international-phone-country-selector-dropdown__list-item:hover {
+          background: rgba(194, 24, 91, 0.05) !important;
+        }
+
+        .react-international-phone-country-selector-dropdown__list-item--selected {
+          background: rgba(194, 24, 91, 0.1) !important;
+          font-weight: 600;
+        }
+
+        .react-international-phone-country-selector-dropdown__list-item--focused {
+          background: rgba(194, 24, 91, 0.08) !important;
         }
       `}</style>
     </div>
