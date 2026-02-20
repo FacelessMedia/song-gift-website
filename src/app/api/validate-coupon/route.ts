@@ -1,7 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// ─── In-memory rate limiter ───
+const RATE_LIMIT_MAX = 5;          // max attempts
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const attemptsByIp = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = attemptsByIp.get(ip) || [];
+
+  // Keep only timestamps within the window
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    attemptsByIp.set(ip, recent);
+    return true;
+  }
+
+  recent.push(now);
+  attemptsByIp.set(ip, recent);
+  return false;
+}
+
+// Periodic cleanup to prevent memory leak (runs at most once per minute)
+let lastCleanup = Date.now();
+function cleanupStaleEntries() {
+  const now = Date.now();
+  if (now - lastCleanup < 60_000) return;
+  lastCleanup = now;
+
+  for (const [ip, timestamps] of attemptsByIp) {
+    const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (recent.length === 0) {
+      attemptsByIp.delete(ip);
+    } else {
+      attemptsByIp.set(ip, recent);
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  cleanupStaleEntries();
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+
+  if (isRateLimited(ip)) {
+    console.warn('[COUPON] Rate limited:', ip);
+    return NextResponse.json(
+      { valid: false, error: 'Too many attempts. Please try again in a few minutes.' },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { code, original_amount } = body;
