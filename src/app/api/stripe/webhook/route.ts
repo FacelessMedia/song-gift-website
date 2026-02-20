@@ -11,32 +11,6 @@ if (!webhookSecret) {
   throw new Error('Missing required environment variable: STRIPE_WEBHOOK_SECRET');
 }
 
-// Generate tracking ID in format SG-XXXXXXXX
-function generateTrackingId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = 'SG-';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-// Calculate expected delivery date
-function calculateDeliveryDate(deliverySpeed: 'standard' | 'express'): Date {
-  const now = new Date();
-  const deliveryDate = new Date(now);
-  
-  if (deliverySpeed === 'express') {
-    // Express: +1 day
-    deliveryDate.setDate(now.getDate() + 1);
-  } else {
-    // Standard: +2 days
-    deliveryDate.setDate(now.getDate() + 2);
-  }
-  
-  return deliveryDate;
-}
-
 export async function POST(request: NextRequest) {
   console.log('[STRIPE WEBHOOK] Received POST request');
   
@@ -82,218 +56,112 @@ export async function POST(request: NextRequest) {
         metadata: session.metadata || {},
       });
 
-      // Extract data from session
-      const sessionId = session.id;
+      // Extract data from Stripe session
+      const stripeSessionId = session.id;
       const paymentIntentId = session.payment_intent as string;
-      const customerEmail = session.customer_email;
       const amountTotal = session.amount_total; // in cents
-      const currency = session.currency;
       const metadata = session.metadata || {};
 
-      // Parse metadata - now contains session_id instead of checkout_id
       const frontendSessionId = metadata.session_id;
-      const deliverySpeed = metadata.delivery_speed as 'standard' | 'express';
+      const orderId = metadata.order_id;
+      const trackingId = metadata.tracking_id;
       const couponCode = metadata.coupon_code || null;
       const couponDiscount = metadata.coupon_discount ? parseInt(metadata.coupon_discount, 10) : 0;
-      
-      let intakePayload = {};
-      
-      // Retrieve intake data using session ID from server storage
-      let customerName = '';
-      let extractedCustomerEmail = '';
-      let customerPhone = '';
-      
-      if (frontendSessionId) {
-        try {
-          // Query Supabase directly for session data (no HTTP self-call)
-          const { data: sessionEntry, error: sessionFetchError } = await supabaseAdmin
-            .from('session_data')
-            .select('intake_data, expires_at')
-            .eq('session_id', frontendSessionId)
-            .single();
 
-          if (sessionFetchError || !sessionEntry) {
-            console.warn('Session data not found in Supabase for:', frontendSessionId, sessionFetchError?.message);
-          } else if (new Date(sessionEntry.expires_at) < new Date()) {
-            console.warn('Session data expired for:', frontendSessionId);
-          } else {
-            intakePayload = sessionEntry.intake_data;
-              
-            // Extract customer contact info from intake data
-            customerName = (intakePayload as any).fullName || '';
-            extractedCustomerEmail = (intakePayload as any).email || '';
-              
-            // Prefer E.164 format for phone, fallback to display format, then basic phoneNumber
-            customerPhone = (intakePayload as any).customer_phone_e164 || 
-                           (intakePayload as any).customer_phone_display || 
-                           (intakePayload as any).phoneNumber || '';
-              
-            console.log('Retrieved full intake data for session:', frontendSessionId);
-            console.log('Customer contact info:', { customerName, extractedCustomerEmail, customerPhone });
-              
-            debugLog('WEBHOOK — intake data retrieved', {
-              frontendSessionId,
-              customerName,
-              customerEmail: extractedCustomerEmail,
-              customerPhone,
-              intakeKeys: Object.keys(intakePayload),
-            });
-          }
-        } catch (fetchError) {
-          console.error('Error fetching session data from Supabase:', fetchError);
-        }
-      }
-      
-      // Fallback: if no intake data found, create minimal payload
-      if (!intakePayload || Object.keys(intakePayload).length === 0) {
-        console.warn('No intake data found, using minimal payload for session:', frontendSessionId);
-        intakePayload = {
-          sessionId: frontendSessionId,
-          recipientName: 'Unknown',
-          coreMessage: 'Custom song request',
-          intakeCompletedAt: new Date().toISOString(),
-        };
+      // ─── Find the existing pending order ───
+      // Primary: look up by order_id from metadata (most reliable)
+      // Fallback: look up by stripe_checkout_session_id or session_id
+      let existingOrder: any = null;
+
+      if (orderId) {
+        const { data } = await supabaseAdmin
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+        existingOrder = data;
       }
 
-      // Use extracted email or fallback to Stripe session email
-      const finalCustomerEmail = extractedCustomerEmail || customerEmail || '';
-      
-      // Validate required data — return 200 even on failure to prevent Stripe retries
-      if (!sessionId || !finalCustomerEmail || !amountTotal || !deliverySpeed) {
-        console.error('[STRIPE WEBHOOK] Missing required session data:', {
-          sessionId,
-          finalCustomerEmail,
-          amountTotal,
-          deliverySpeed
-        });
-        // Return 200 to Stripe so it doesn't retry — log the error for debugging
-        return NextResponse.json({ received: true, error: 'Missing required session data' });
+      if (!existingOrder && stripeSessionId) {
+        const { data } = await supabaseAdmin
+          .from('orders')
+          .select('*')
+          .eq('stripe_checkout_session_id', stripeSessionId)
+          .single();
+        existingOrder = data;
       }
 
-      // Check for existing order (idempotency)
-      const { data: existingOrder } = await supabaseAdmin
-        .from('orders')
-        .select('id')
-        .eq('stripe_checkout_session_id', sessionId)
-        .single();
+      if (!existingOrder && frontendSessionId) {
+        const { data } = await supabaseAdmin
+          .from('orders')
+          .select('*')
+          .eq('session_id', frontendSessionId)
+          .eq('order_status', 'pending')
+          .single();
+        existingOrder = data;
+      }
 
-      if (existingOrder) {
-        console.log('Order already exists for session:', sessionId);
+      if (!existingOrder) {
+        console.error('[STRIPE WEBHOOK] No pending order found for:', { orderId, stripeSessionId, frontendSessionId });
+        return NextResponse.json({ received: true, error: 'No pending order found' });
+      }
+
+      // Idempotency: if already paid, skip
+      if (existingOrder.order_status === 'paid') {
+        console.log('[STRIPE WEBHOOK] Order already paid:', existingOrder.id);
         return NextResponse.json({ received: true, existing: true });
       }
 
-      // Generate tracking ID and delivery date
-      const trackingId = generateTrackingId();
-      const expectedDeliveryAt = calculateDeliveryDate(deliverySpeed);
-      const paidAt = new Date();
+      // ─── Update order to 'paid' ───
+      const paidAt = new Date().toISOString();
 
-      // Resolve "Other" values in arrays — replace literal "other" with custom text
-      const rawMusicStyle: string[] = (intakePayload as any).musicStyle || [];
-      const musicStyleCustom: string = (intakePayload as any).musicStyleCustom || '';
-      const resolvedMusicStyle = rawMusicStyle.map((item: string) => 
-        item === 'other' && musicStyleCustom.trim() ? musicStyleCustom.trim() : item
-      ).filter((item: string) => item !== 'other'); // Remove unresolved "other"
-
-      const rawEmotionalVibe: string[] = (intakePayload as any).emotionalVibe || [];
-      const emotionalVibeCustom: string = (intakePayload as any).emotionalVibeCustom || '';
-      const resolvedEmotionalVibe = rawEmotionalVibe.map((item: string) => 
-        item === 'other' && emotionalVibeCustom.trim() ? emotionalVibeCustom.trim() : item
-      ).filter((item: string) => item !== 'other'); // Remove unresolved "other"
-
-      // Resolve gender — use custom text if "other"
-      const rawGender: string = (intakePayload as any).gender || '';
-      const genderCustom: string = (intakePayload as any).genderCustom || '';
-      const resolvedGender = rawGender === 'other' && genderCustom.trim() ? genderCustom.trim() : rawGender;
-
-      // Insert order into Supabase with customer contact fields and key intake fields
-      const { data: order, error: insertError } = await supabaseAdmin
+      const { data: order, error: updateError } = await supabaseAdmin
         .from('orders')
-        .insert({
-          tracking_id: trackingId,
-          paid_at: paidAt.toISOString(),
-          customer_name: customerName,
-          customer_email: finalCustomerEmail,
-          customer_phone: customerPhone,
-          session_id: frontendSessionId,
-          amount_paid: amountTotal,
-          currency: currency,
-          delivery_speed: deliverySpeed,
-          expected_delivery_at: expectedDeliveryAt.toISOString(),
+        .update({
           order_status: 'paid',
-          intake_payload: intakePayload,
-          stripe_checkout_session_id: sessionId,
+          paid_at: paidAt,
+          amount_paid: amountTotal,
+          stripe_checkout_session_id: stripeSessionId,
           stripe_payment_intent_id: paymentIntentId,
-          // Extract key intake fields for easier querying
-          recipient_name: (intakePayload as any).recipientName || '',
-          recipient_relationship: (intakePayload as any).recipientRelationship || '',
-          song_perspective: (intakePayload as any).songPerspective || '',
-          primary_language: (intakePayload as any).primaryLanguage || '',
-          music_style: resolvedMusicStyle,
-          emotional_vibe: resolvedEmotionalVibe,
-          voice_preference: (intakePayload as any).voicePreference || '',
-          faith_expression_level: (intakePayload as any).faithExpressionLevel || null,
-          core_message: (intakePayload as any).coreMessage || '',
-          gender: resolvedGender || null,
-          gender_custom: rawGender === 'other' ? genderCustom : null,
-          coupon_code: couponCode,
-          coupon_discount: couponDiscount,
+          coupon_code: couponCode || existingOrder.coupon_code,
+          coupon_discount: couponDiscount || existingOrder.coupon_discount,
         })
+        .eq('id', existingOrder.id)
         .select()
         .single();
 
-      if (insertError) {
-        console.error('[STRIPE WEBHOOK] Failed to insert order:', {
-          error: insertError,
-          code: insertError.code,
-          message: insertError.message,
-          details: insertError.details,
-          hint: insertError.hint,
-          sessionId,
-          customerEmail,
-          trackingId
+      if (updateError || !order) {
+        console.error('[STRIPE WEBHOOK] Failed to update order to paid:', {
+          error: updateError,
+          orderId: existingOrder.id,
         });
-        // Return 200 to Stripe so it doesn't retry — log the error for debugging
-        return NextResponse.json({ received: true, error: 'Failed to create order', details: insertError.message });
+        return NextResponse.json({ received: true, error: 'Failed to update order', details: updateError?.message });
       }
 
-      console.log('Order created successfully:', {
+      console.log('[STRIPE WEBHOOK] Order updated to paid:', {
         id: order.id,
         trackingId: order.tracking_id,
         customerEmail: order.customer_email,
         amount: order.amount_paid,
-        deliverySpeed: order.delivery_speed
+        deliverySpeed: order.delivery_speed,
       });
 
-      debugLog('WEBHOOK — order created in Supabase', {
+      debugLog('WEBHOOK — order updated to paid', {
         orderId: order.id,
         trackingId: order.tracking_id,
         customerName: order.customer_name,
         customerEmail: order.customer_email,
-        customerPhone: order.customer_phone,
-        gender: order.gender,
-        genderCustom: order.gender_custom,
-        sessionId: order.session_id,
-        amountPaid: order.amount_paid,
-        deliverySpeed: order.delivery_speed,
-        recipientName: order.recipient_name,
-        recipientRelationship: order.recipient_relationship,
-        musicStyle: order.music_style,
-        emotionalVibe: order.emotional_vibe,
-        voicePreference: order.voice_preference,
-        faithExpressionLevel: order.faith_expression_level,
-        coreMessage: order.core_message,
         paidAt: order.paid_at,
       });
 
-      // Send order data to n8n webhook (don't fail if webhook fails)
+      // ─── Send "paid" webhook to n8n ───
       try {
         const n8nConfig = validateN8nConfig();
         if (n8nConfig.isConfigured) {
-          console.log('Sending order to n8n webhook...');
+          console.log('Sending paid order to n8n webhook...');
           
           const webhookPayload = {
             status: 'paid' as const,
-            // Order information
             order: {
               tracking_id: order.tracking_id,
               created_at: order.created_at,
@@ -307,18 +175,16 @@ export async function POST(request: NextRequest) {
               session_id: order.session_id,
               stripe_checkout_session_id: order.stripe_checkout_session_id,
               stripe_payment_intent_id: order.stripe_payment_intent_id,
-              coupon_code: couponCode,
-              coupon_discount: couponDiscount,
+              coupon_code: order.coupon_code,
+              coupon_discount: order.coupon_discount,
             },
-            // Customer contact information
             customer: {
               name: order.customer_name,
               email: order.customer_email,
               phone: order.customer_phone,
               gender: order.gender || null,
-              gender_custom: order.gender_custom || null
+              gender_custom: order.gender_custom || null,
             },
-            // Resolved intake fields (Other values replaced with actual text)
             song_details: {
               recipient_name: order.recipient_name,
               recipient_relationship: order.recipient_relationship,
@@ -328,10 +194,9 @@ export async function POST(request: NextRequest) {
               emotional_vibe: order.emotional_vibe,
               voice_preference: order.voice_preference,
               faith_expression_level: order.faith_expression_level || null,
-              core_message: order.core_message
+              core_message: order.core_message,
             },
-            // Complete raw intake form data
-            intake: order.intake_payload || {}
+            intake: order.intake_payload || {},
           };
 
           debugLogPayload('WEBHOOK — n8n order payload', webhookPayload);
@@ -340,10 +205,8 @@ export async function POST(request: NextRequest) {
           
           if (webhookSuccess) {
             console.log('Successfully sent order to n8n webhook');
-            debugLog('WEBHOOK — n8n order webhook sent successfully');
           } else {
             console.warn('Failed to send order to n8n webhook, but order was saved');
-            debugLog('WEBHOOK — n8n order webhook FAILED (order still saved)');
           }
         } else {
           console.log('n8n webhook not configured, skipping');
@@ -355,7 +218,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         received: true, 
         orderId: order.id,
-        trackingId: order.tracking_id
+        trackingId: order.tracking_id,
       });
     }
 

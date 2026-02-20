@@ -45,6 +45,7 @@ export interface OrderWebhookPayload {
 export interface InitiatedWebhookPayload {
   status: 'initiated';
   session_id: string;
+  tracking_id: string;
   customer: {
     name: string;
     email: string;

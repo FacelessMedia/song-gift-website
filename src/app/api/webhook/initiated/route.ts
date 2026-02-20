@@ -9,7 +9,7 @@ import { sendToN8nWebhook, InitiatedWebhookPayload } from '@/lib/n8nWebhook';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, intakeData } = body;
+    const { sessionId, intakeData, tracking_id } = body;
 
     if (!sessionId || !intakeData) {
       return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const payload: InitiatedWebhookPayload = {
       status: 'initiated',
       session_id: sessionId,
+      tracking_id: tracking_id || 'unknown',
       customer: {
         name: intakeData.fullName || '',
         email: intakeData.email || '',
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[INITIATED WEBHOOK] Sending to n8n:', {
       sessionId,
+      trackingId: payload.tracking_id,
       customerEmail: payload.customer.email,
       deliverySpeed: payload.delivery_speed,
     });
