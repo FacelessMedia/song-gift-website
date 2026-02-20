@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
           currency: currency,
           delivery_speed: deliverySpeed,
           expected_delivery_at: expectedDeliveryAt.toISOString(),
-          order_status: 'Paid',
+          order_status: 'paid',
           intake_payload: intakePayload,
           stripe_checkout_session_id: sessionId,
           stripe_payment_intent_id: paymentIntentId,

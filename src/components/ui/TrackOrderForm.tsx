@@ -112,13 +112,14 @@ export default function TrackOrderForm() {
                     <p className="text-xs font-medium text-green-600 uppercase tracking-wide">Status</p>
                     <p className="mt-1 text-sm font-semibold text-green-900">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        orderData.order_status === 'Paid' ? 'bg-blue-100 text-blue-800' :
-                        orderData.order_status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
-                        orderData.order_status === 'QA' ? 'bg-purple-100 text-purple-800' :
-                        orderData.order_status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                        orderData.order_status === 'paid' ? 'bg-blue-100 text-blue-800' :
+                        orderData.order_status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        orderData.order_status === 'qa' ? 'bg-purple-100 text-purple-800' :
+                        orderData.order_status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        orderData.order_status === 'failed' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {orderData.order_status}
+                        {orderData.order_status === 'qa' ? 'QA' : orderData.order_status.charAt(0).toUpperCase() + orderData.order_status.slice(1)}
                       </span>
                     </p>
                   </div>

@@ -32,7 +32,7 @@ export interface Order {
   currency: string;
   delivery_speed: 'standard' | 'express';
   expected_delivery_at: string | null;
-  order_status: 'New' | 'Paid' | 'Processing' | 'QA' | 'Delivered';
+  order_status: 'pending' | 'paid' | 'processing' | 'qa' | 'delivered' | 'failed';
   intake_payload: any; // JSON object with all intake form data
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;

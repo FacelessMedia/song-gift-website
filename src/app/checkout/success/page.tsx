@@ -220,7 +220,7 @@ function CheckoutSuccessContent() {
                     <p className="text-xs font-medium text-text-muted uppercase tracking-wide">Order Status</p>
                     <p className="mt-1 font-semibold text-text-main">
                       <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        {orderData.order_status}
+                        {orderData.order_status === 'qa' ? 'QA' : orderData.order_status.charAt(0).toUpperCase() + orderData.order_status.slice(1)}
                       </span>
                     </p>
                   </div>
