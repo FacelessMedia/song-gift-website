@@ -16,9 +16,12 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: InitiatedWebhookPayload = {
-      status: 'initiated',
-      session_id: sessionId,
+      event: 'order_initiated',
+      order_id: body.order_id || 'unknown',
       tracking_id: tracking_id || 'unknown',
+      status: 'pending',
+      amount: body.amount || 0,
+      currency: body.currency || 'usd',
       customer: {
         name: intakeData.fullName || '',
         email: intakeData.email || '',
@@ -35,11 +38,11 @@ export async function POST(request: NextRequest) {
       deliverySpeed: payload.delivery_speed,
     });
 
-    const success = await sendToN8nWebhook(payload);
+    await sendToN8nWebhook(payload);
 
-    console.log('[INITIATED WEBHOOK] Result:', success ? 'sent' : 'failed (non-blocking)');
+    console.log('[INITIATED WEBHOOK] Sent successfully');
 
-    return NextResponse.json({ success });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[INITIATED WEBHOOK] Error:', error);
     // Always return 200 — this must never block checkout

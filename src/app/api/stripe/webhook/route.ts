@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { sendOrderToN8n, validateN8nConfig } from '@/lib/n8nWebhook';
+import { sendToN8nWebhook, OrderWebhookPayload } from '@/lib/n8nWebhook';
 import { debugLog, debugLogPayload, debugLogResponse } from '@/lib/debugLogger';
 import Stripe from 'stripe';
 
@@ -160,65 +160,57 @@ export async function POST(request: NextRequest) {
         paidAt: order.paid_at,
       });
 
-      // ─── Send "paid" webhook to n8n ───
+      // ─── Send "order_paid" webhook to n8n ───
       try {
-        const n8nConfig = validateN8nConfig();
-        if (n8nConfig.isConfigured) {
-          console.log('Sending paid order to n8n webhook...');
-          
-          const webhookPayload = {
-            status: 'paid' as const,
-            order: {
-              tracking_id: order.tracking_id,
-              created_at: order.created_at,
-              paid_at: order.paid_at,
-              order_status: order.order_status,
-              delivery_type: order.delivery_speed,
-              delivery_eta: order.expected_delivery_at,
-              payment_timestamp: order.paid_at,
-              amount_paid: order.amount_paid,
-              currency: order.currency,
-              session_id: order.session_id,
-              stripe_checkout_session_id: order.stripe_checkout_session_id,
-              stripe_payment_intent_id: order.stripe_payment_intent_id,
-              coupon_code: order.coupon_code,
-              coupon_discount: order.coupon_discount,
-            },
-            customer: {
-              name: order.customer_name,
-              email: order.customer_email,
-              phone: order.customer_phone,
-              gender: order.gender || null,
-              gender_custom: order.gender_custom || null,
-            },
-            song_details: {
-              recipient_name: order.recipient_name,
-              recipient_relationship: order.recipient_relationship,
-              song_perspective: order.song_perspective,
-              primary_language: order.primary_language,
-              music_style: order.music_style,
-              emotional_vibe: order.emotional_vibe,
-              voice_preference: order.voice_preference,
-              faith_expression_level: order.faith_expression_level || null,
-              core_message: order.core_message,
-            },
-            intake: order.intake_payload || {},
-          };
+        console.log('💰 Sending order_paid webhook for order_id:', order.id);
 
-          debugLogPayload('WEBHOOK — n8n order payload', webhookPayload);
+        const webhookPayload: OrderWebhookPayload = {
+          event: 'order_paid',
+          order_id: order.id,
+          tracking_id: order.tracking_id,
+          status: 'paid',
+          stripe_checkout_session_id: order.stripe_checkout_session_id,
+          stripe_payment_intent_id: order.stripe_payment_intent_id,
+          amount_paid: order.amount_paid,
+          currency: order.currency,
+          order: {
+            created_at: order.created_at,
+            paid_at: order.paid_at,
+            order_status: order.order_status,
+            delivery_type: order.delivery_speed,
+            delivery_eta: order.expected_delivery_at,
+            session_id: order.session_id,
+            coupon_code: order.coupon_code,
+            coupon_discount: order.coupon_discount,
+          },
+          customer: {
+            name: order.customer_name,
+            email: order.customer_email,
+            phone: order.customer_phone,
+            gender: order.gender || null,
+            gender_custom: order.gender_custom || null,
+          },
+          song_details: {
+            recipient_name: order.recipient_name,
+            recipient_relationship: order.recipient_relationship,
+            song_perspective: order.song_perspective,
+            primary_language: order.primary_language,
+            music_style: order.music_style,
+            emotional_vibe: order.emotional_vibe,
+            voice_preference: order.voice_preference,
+            faith_expression_level: order.faith_expression_level || null,
+            core_message: order.core_message,
+          },
+          intake: order.intake_payload || {},
+        };
 
-          const webhookSuccess = await sendOrderToN8n(webhookPayload);
-          
-          if (webhookSuccess) {
-            console.log('Successfully sent order to n8n webhook');
-          } else {
-            console.warn('Failed to send order to n8n webhook, but order was saved');
-          }
-        } else {
-          console.log('n8n webhook not configured, skipping');
-        }
+        debugLogPayload('WEBHOOK — n8n order_paid payload', webhookPayload);
+
+        await sendToN8nWebhook(webhookPayload);
+        console.log('💰 order_paid webhook sent successfully for order_id:', order.id);
       } catch (webhookError) {
-        console.error('Error sending to n8n webhook (order still saved):', webhookError);
+        console.error('[STRIPE WEBHOOK] order_paid webhook FAILED (order still saved):', webhookError);
+        // Do NOT fail the Stripe response — order is already updated to paid
       }
 
       return NextResponse.json({ 

@@ -204,24 +204,31 @@ export async function POST(request: NextRequest) {
 
     console.log('[CHECKOUT] Pending order created:', { id: order.id, trackingId: order.tracking_id });
 
-    // ─── STEP 3: Fire "initiated" webhook to n8n (non-blocking) ───
-    const initiatedPayload: InitiatedWebhookPayload = {
-      status: 'initiated',
-      session_id: sessionId,
-      tracking_id: trackingId,
-      customer: {
-        name: customerName,
-        email: email,
-        phone: customerPhone,
-      },
-      delivery_speed: dbDeliverySpeed,
-      intake: intakePayload,
-    };
+    // ─── STEP 3: Fire "order_initiated" webhook to n8n ───
+    try {
+      const initiatedPayload: InitiatedWebhookPayload = {
+        event: 'order_initiated',
+        order_id: order.id,
+        tracking_id: trackingId,
+        status: 'pending',
+        amount: totalPrice - couponDiscount,
+        currency: PRICING.CURRENCY,
+        customer: {
+          name: customerName,
+          email: email,
+          phone: customerPhone,
+        },
+        delivery_speed: dbDeliverySpeed,
+        intake: intakePayload,
+      };
 
-    // Fire-and-forget — do not await or block on this
-    sendToN8nWebhook(initiatedPayload).catch((err) =>
-      console.warn('[CHECKOUT] Initiated webhook failed (non-blocking):', err)
-    );
+      console.log('[CHECKOUT] Sending order_initiated webhook for order_id:', order.id);
+      await sendToN8nWebhook(initiatedPayload);
+      console.log('[CHECKOUT] order_initiated webhook sent successfully for order_id:', order.id);
+    } catch (webhookErr) {
+      console.error('[CHECKOUT] order_initiated webhook FAILED (non-blocking):', webhookErr);
+      // Do NOT block Stripe redirect — order is already created
+    }
 
     // ─── STEP 4: Build line items and create Stripe checkout session ───
     const adjustedBasePrice = couponDiscount > 0 ? Math.max(basePrice - couponDiscount, 100) : basePrice;

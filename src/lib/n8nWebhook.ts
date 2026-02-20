@@ -1,23 +1,23 @@
 import crypto from 'crypto';
 
-const n8nWebhookUrl = process.env.N8N_ORDER_WEBHOOK_URL;
 const signingSecret = process.env.N8N_WEBHOOK_SIGNING_SECRET;
 
 export interface OrderWebhookPayload {
+  event: 'order_paid';
+  order_id: string;
+  tracking_id: string;
   status: 'paid';
+  stripe_checkout_session_id: string;
+  stripe_payment_intent_id: string;
+  amount_paid: number;
+  currency: string;
   order: {
-    tracking_id: string;
     created_at: string;
     paid_at: string;
     order_status: string;
     delivery_type: string;
     delivery_eta: string;
-    payment_timestamp: string;
-    amount_paid: number;
-    currency: string;
     session_id: string;
-    stripe_checkout_session_id: string;
-    stripe_payment_intent_id: string;
     coupon_code: string | null;
     coupon_discount: number;
   };
@@ -43,9 +43,12 @@ export interface OrderWebhookPayload {
 }
 
 export interface InitiatedWebhookPayload {
-  status: 'initiated';
-  session_id: string;
+  event: 'order_initiated';
+  order_id: string;
   tracking_id: string;
+  status: 'pending';
+  amount: number;
+  currency: string;
   customer: {
     name: string;
     email: string;
@@ -63,68 +66,50 @@ function generateSignature(payload: string, secret: string): string {
     .digest('hex');
 }
 
-// Generic function to send any payload to n8n webhook
-export async function sendToN8nWebhook(data: OrderWebhookPayload | InitiatedWebhookPayload): Promise<boolean> {
+// Send payload to n8n webhook — throws on failure, never swallows errors
+export async function sendToN8nWebhook(data: OrderWebhookPayload | InitiatedWebhookPayload): Promise<void> {
+  const n8nWebhookUrl = process.env.N8N_ORDER_WEBHOOK_URL;
+
   if (!n8nWebhookUrl) {
-    console.warn('N8N_ORDER_WEBHOOK_URL not configured, skipping webhook');
-    return false;
+    throw new Error('N8N_ORDER_WEBHOOK_URL is not configured — cannot send webhook');
   }
 
-  try {
-    const payload = JSON.stringify(data);
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'User-Agent': 'SongGift-Webhook/1.0',
-    };
-
-    // Add HMAC signature if signing secret is configured
-    if (signingSecret) {
-      const signature = generateSignature(payload, signingSecret);
-      headers['X-SongGift-Signature'] = `sha256=${signature}`;
-    }
-
-    console.log(`[n8n webhook] Sending status=${data.status}:`, {
-      url: n8nWebhookUrl,
-      status: data.status,
-      hasSignature: !!signingSecret
-    });
-
-    const response = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers,
-      body: payload,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const responseText = await response.text();
-    console.log(`[n8n webhook] Response for status=${data.status}:`, {
-      status: response.status,
-      response: responseText.substring(0, 200)
-    });
-
-    return true;
-
-  } catch (error) {
-    console.error(`[n8n webhook] Failed to send status=${data.status}:`, {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      webhookUrl: n8nWebhookUrl
-    });
-    return false;
-  }
-}
-
-// Send order data to n8n webhook (backward-compatible wrapper)
-export async function sendOrderToN8n(orderData: OrderWebhookPayload): Promise<boolean> {
-  return sendToN8nWebhook(orderData);
-}
-
-// Validate webhook configuration
-export function validateN8nConfig(): { isConfigured: boolean; hasSigningSecret: boolean } {
-  return {
-    isConfigured: !!n8nWebhookUrl,
-    hasSigningSecret: !!signingSecret
+  const payload = JSON.stringify(data);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'SongGift-Webhook/1.0',
   };
+
+  // Add HMAC signature if signing secret is configured
+  if (signingSecret) {
+    const signature = generateSignature(payload, signingSecret);
+    headers['X-SongGift-Signature'] = `sha256=${signature}`;
+  }
+
+  console.log(`📤 Sending n8n webhook: ${data.event} order_id=${data.order_id}`, {
+    url: n8nWebhookUrl,
+    event: data.event,
+    order_id: data.order_id,
+    tracking_id: data.tracking_id,
+    hasSignature: !!signingSecret,
+  });
+
+  const response = await fetch(n8nWebhookUrl, {
+    method: 'POST',
+    headers,
+    body: payload,
+  });
+
+  console.log(`📥 n8n response status: ${response.status} for ${data.event} order_id=${data.order_id}`);
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => 'unable to read body');
+    throw new Error(`n8n webhook failed: HTTP ${response.status} ${response.statusText} — ${responseText.substring(0, 200)}`);
+  }
+
+  const responseText = await response.text();
+  console.log(`✅ n8n webhook success: ${data.event} order_id=${data.order_id}`, {
+    responseStatus: response.status,
+    responseBody: responseText.substring(0, 200),
+  });
 }
