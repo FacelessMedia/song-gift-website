@@ -48,12 +48,6 @@ export default function Navigation() {
               Home
             </button>
             <button 
-              onClick={() => handleNavigation('/create')}
-              className="font-body text-text-main hover:text-primary transition-colors"
-            >
-              Create
-            </button>
-            <button 
               onClick={() => handleNavigation('/track-order')}
               className="font-body text-text-main hover:text-primary transition-colors"
             >
@@ -131,12 +125,6 @@ export default function Navigation() {
                 className="font-body text-text-main hover:text-primary transition-colors text-left py-2"
               >
                 Home
-              </button>
-              <button 
-                onClick={() => handleNavigation('/create')}
-                className="font-body text-text-main hover:text-primary transition-colors text-left py-2"
-              >
-                Create / Gift a Custom Song
               </button>
               <button 
                 onClick={() => handleNavigation('/track-order')}
