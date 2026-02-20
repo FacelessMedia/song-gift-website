@@ -21,7 +21,12 @@
 DROP TABLE IF EXISTS temp_checkout_data;
 
 -- ============================================================
--- STEP 2: Migrate existing order_status values to lowercase
+-- STEP 2: Drop old CHECK constraint FIRST (before migrating values)
+-- ============================================================
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_order_status_check;
+
+-- ============================================================
+-- STEP 3: Migrate existing order_status values to lowercase
 -- ============================================================
 UPDATE orders SET order_status = 'pending'    WHERE order_status = 'New';
 UPDATE orders SET order_status = 'paid'       WHERE order_status = 'Paid';
@@ -30,22 +35,18 @@ UPDATE orders SET order_status = 'qa'         WHERE order_status = 'QA';
 UPDATE orders SET order_status = 'delivered'  WHERE order_status = 'Delivered';
 
 -- ============================================================
--- STEP 3: Drop old CHECK constraint and add new one
+-- STEP 4: Add new CHECK constraint with lowercase lifecycle values
 -- ============================================================
--- Drop the existing constraint (name may vary — this handles both cases)
-ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_order_status_check;
-
--- Add new constraint with lowercase lifecycle values
 ALTER TABLE orders ADD CONSTRAINT orders_order_status_check
   CHECK (order_status IN ('pending', 'paid', 'processing', 'qa', 'delivered', 'failed'));
 
 -- ============================================================
--- STEP 4: Update default value
+-- STEP 5: Update default value
 -- ============================================================
 ALTER TABLE orders ALTER COLUMN order_status SET DEFAULT 'pending';
 
 -- ============================================================
--- STEP 5: Update comments
+-- STEP 6: Update comments
 -- ============================================================
 COMMENT ON COLUMN orders.order_status IS 'Order lifecycle: pending → paid → processing → qa → delivered (or failed)';
 

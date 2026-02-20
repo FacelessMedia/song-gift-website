@@ -103,7 +103,10 @@ export async function POST(request: NextRequest) {
 
       if (!existingOrder) {
         console.error('[STRIPE WEBHOOK] No pending order found for:', { orderId, stripeSessionId, frontendSessionId });
-        return NextResponse.json({ received: true, error: 'No pending order found' });
+        return NextResponse.json(
+          { error: 'No pending order found', orderId, stripeSessionId, frontendSessionId },
+          { status: 500 }
+        );
       }
 
       // Idempotency: if already paid, skip
@@ -135,7 +138,10 @@ export async function POST(request: NextRequest) {
           error: updateError,
           orderId: existingOrder.id,
         });
-        return NextResponse.json({ received: true, error: 'Failed to update order', details: updateError?.message });
+        return NextResponse.json(
+          { error: 'Failed to update order to paid', orderId: existingOrder.id, details: updateError?.message },
+          { status: 500 }
+        );
       }
 
       console.log('[STRIPE WEBHOOK] Order updated to paid:', {
@@ -228,11 +234,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[STRIPE WEBHOOK] Unhandled processing error:', error);
-    // Return 200 to Stripe so it doesn't retry — prevents duplicate processing on retries
-    return NextResponse.json({ 
-      received: true, 
-      error: 'Webhook processing failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    // Return 500 so Stripe retries — idempotency check above prevents duplicate processing
+    return NextResponse.json(
+      { error: 'Webhook processing failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
