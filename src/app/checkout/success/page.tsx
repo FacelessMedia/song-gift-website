@@ -24,7 +24,6 @@ function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [pollingDone, setPollingDone] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Generate personalized confirmation messaging
@@ -73,39 +72,51 @@ function CheckoutSuccessContent() {
     clearSessionData();
 
     let cancelled = false;
-    let attempts = 0;
-    const maxAttempts = 20; // 20 seconds
 
-    const poll = async () => {
-      while (attempts < maxAttempts && !cancelled) {
-        try {
-          const response = await fetch('/api/orders/by-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId }),
-          });
+    const fetchOrder = async () => {
+      try {
+        const response = await fetch('/api/orders/by-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
 
-          const data = await response.json();
+        const data = await response.json();
 
-          if (response.ok && data.tracking_id) {
-            if (!cancelled) setOrderData(data);
-            return;
-          }
-        } catch {
-          // Network error — keep polling
+        if (response.ok && data.tracking_id && !cancelled) {
+          setOrderData(data);
+          return data.order_status;
         }
-
-        attempts++;
-        if (attempts < maxAttempts && !cancelled) {
-          await new Promise(r => setTimeout(r, 1000));
-        }
+      } catch {
+        // Network error — will retry on next poll
       }
-
-      // Polling exhausted — mark done so we show the graceful fallback
-      if (!cancelled) setPollingDone(true);
+      return null;
     };
 
-    poll();
+    // Fetch immediately, then poll every 2s while status is 'pending'
+    const startPolling = async () => {
+      const status = await fetchOrder();
+
+      // If already paid (or any non-pending status), we're done
+      if (status && status !== 'pending') return;
+
+      // Poll every 2 seconds until status changes from 'pending'
+      const interval = setInterval(async () => {
+        if (cancelled) { clearInterval(interval); return; }
+
+        const currentStatus = await fetchOrder();
+        if (cancelled) { clearInterval(interval); return; }
+
+        if (currentStatus && currentStatus !== 'pending') {
+          clearInterval(interval);
+        }
+      }, 2000);
+
+      // Cleanup interval on unmount
+      return () => clearInterval(interval);
+    };
+
+    startPolling();
 
     return () => { cancelled = true; };
   }, [sessionId]);
@@ -176,12 +187,20 @@ function CheckoutSuccessContent() {
             )}
           </div>
 
-          {/* Order Details — shown when webhook has processed */}
+          {/* Order Details */}
           {orderData ? (
             <div className="bg-white rounded-2xl shadow-soft border border-primary/10 p-6 mb-8">
               <h2 className="font-heading text-xl font-semibold text-text-main mb-6">
                 Order Details
               </h2>
+
+              {/* Payment Processing banner — shown while status is still pending */}
+              {orderData.order_status === 'pending' && (
+                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-600 flex-shrink-0"></div>
+                  <p className="font-body text-amber-800 text-sm font-medium">Payment Processing...</p>
+                </div>
+              )}
               
               <div className="space-y-4">
                 {/* Tracking ID */}
@@ -219,7 +238,14 @@ function CheckoutSuccessContent() {
                   <div>
                     <p className="text-xs font-medium text-text-muted uppercase tracking-wide">Order Status</p>
                     <p className="mt-1 font-semibold text-text-main">
-                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        orderData.order_status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                        orderData.order_status === 'paid' ? 'bg-blue-100 text-blue-800' :
+                        orderData.order_status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        orderData.order_status === 'qa' ? 'bg-purple-100 text-purple-800' :
+                        orderData.order_status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                         {orderData.order_status === 'qa' ? 'QA' : orderData.order_status.charAt(0).toUpperCase() + orderData.order_status.slice(1)}
                       </span>
                     </p>
@@ -249,23 +275,8 @@ function CheckoutSuccessContent() {
                 </div>
               </div>
             </div>
-          ) : pollingDone ? (
-            /* Graceful fallback — webhook hasn't processed yet but payment succeeded */
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-center">
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h2 className="font-heading text-lg font-semibold text-amber-900 mb-2">
-                We're finalizing your order.
-              </h2>
-              <p className="font-body text-amber-800 text-sm">
-                Your payment was successful. You will receive an email confirmation with your tracking ID shortly.
-              </p>
-            </div>
           ) : (
-            /* Still polling — show subtle loading indicator */
+            /* Initial fetch in progress */
             <div className="bg-white rounded-2xl shadow-soft border border-primary/10 p-6 mb-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-3"></div>
               <p className="font-body text-text-muted text-sm">Loading your order details...</p>
