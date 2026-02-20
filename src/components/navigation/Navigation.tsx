@@ -34,7 +34,7 @@ export default function Navigation() {
               <img
                 src="/songgift_logo_black.png"
                 alt="SongGift"
-                className="h-8 w-auto"
+                className="h-12 w-auto"
               />
             </button>
           </div>
