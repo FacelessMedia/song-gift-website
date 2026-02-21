@@ -173,6 +173,9 @@ export async function POST(request: NextRequest) {
           stripe_payment_intent_id: order.stripe_payment_intent_id,
           amount_paid: order.amount_paid,
           currency: order.currency,
+          expected_delivery_at: order.expected_delivery_at,
+          coupon_code: order.coupon_code || null,
+          coupon_discount_dollars: order.coupon_discount ? (order.coupon_discount / 100).toFixed(2) : '0.00',
           order: {
             created_at: order.created_at,
             paid_at: order.paid_at,
@@ -204,6 +207,7 @@ export async function POST(request: NextRequest) {
           intake: order.intake_payload || {},
         };
 
+        console.log('📦 Webhook payload:', JSON.stringify(webhookPayload, null, 2));
         debugLogPayload('WEBHOOK — n8n order_paid payload', webhookPayload);
 
         await sendToN8nWebhook(webhookPayload);

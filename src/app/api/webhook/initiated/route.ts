@@ -15,13 +15,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
     }
 
+    const couponDiscountCents = body.coupon_discount || 0;
+
     const payload: InitiatedWebhookPayload = {
       event: 'order_initiated',
       order_id: body.order_id || 'unknown',
       tracking_id: tracking_id || 'unknown',
+      session_id: sessionId,
       status: 'pending',
       amount: body.amount || 0,
       currency: body.currency || 'usd',
+      expected_delivery_at: body.expected_delivery_at || '',
+      coupon_code: body.coupon_code || null,
+      coupon_discount_dollars: couponDiscountCents ? (couponDiscountCents / 100).toFixed(2) : '0.00',
       customer: {
         name: intakeData.fullName || '',
         email: intakeData.email || '',
@@ -31,6 +37,7 @@ export async function POST(request: NextRequest) {
       intake: intakeData,
     };
 
+    console.log('📦 Webhook payload:', JSON.stringify(payload, null, 2));
     console.log('[INITIATED WEBHOOK] Sending to n8n:', {
       sessionId,
       trackingId: payload.tracking_id,

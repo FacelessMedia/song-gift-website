@@ -206,13 +206,13 @@ export function ReviewCard({
       <div className={wrapperCls}>
         <div className={cardCls}>
           {/* Video Element */}
-          <div className="aspect-video bg-gradient-to-br from-text-main/10 to-primary/20 rounded-2xl mb-6 overflow-hidden">
+          <div className="aspect-video bg-black rounded-2xl mb-6 overflow-hidden">
             <video
               src={review.mediaFile}
               controls
               playsInline
               preload="metadata"
-              className="w-full h-full object-cover rounded-2xl"
+              className="w-full h-full object-contain rounded-2xl"
             />
           </div>
 

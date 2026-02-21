@@ -11,6 +11,9 @@ export interface OrderWebhookPayload {
   stripe_payment_intent_id: string;
   amount_paid: number;
   currency: string;
+  expected_delivery_at: string;
+  coupon_code: string | null;
+  coupon_discount_dollars: string;
   order: {
     created_at: string;
     paid_at: string;
@@ -46,9 +49,13 @@ export interface InitiatedWebhookPayload {
   event: 'order_initiated';
   order_id: string;
   tracking_id: string;
+  session_id: string;
   status: 'pending';
   amount: number;
   currency: string;
+  expected_delivery_at: string;
+  coupon_code: string | null;
+  coupon_discount_dollars: string;
   customer: {
     name: string;
     email: string;

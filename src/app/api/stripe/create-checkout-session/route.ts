@@ -210,9 +210,13 @@ export async function POST(request: NextRequest) {
         event: 'order_initiated',
         order_id: order.id,
         tracking_id: trackingId,
+        session_id: sessionId,
         status: 'pending',
         amount: totalPrice - couponDiscount,
         currency: PRICING.CURRENCY,
+        expected_delivery_at: expectedDeliveryAt.toISOString(),
+        coupon_code: validatedCouponCode || null,
+        coupon_discount_dollars: couponDiscount ? (couponDiscount / 100).toFixed(2) : '0.00',
         customer: {
           name: customerName,
           email: email,
@@ -222,6 +226,7 @@ export async function POST(request: NextRequest) {
         intake: intakePayload,
       };
 
+      console.log('📦 Webhook payload:', JSON.stringify(initiatedPayload, null, 2));
       console.log('[CHECKOUT] Sending order_initiated webhook for order_id:', order.id);
       await sendToN8nWebhook(initiatedPayload);
       console.log('[CHECKOUT] order_initiated webhook sent successfully for order_id:', order.id);

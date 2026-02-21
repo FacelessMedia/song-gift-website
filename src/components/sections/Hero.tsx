@@ -125,24 +125,22 @@ export default function Hero() {
 
         {/* Featured Video */}
         <div className="relative flex justify-center">
-          {/* Fixed Video Container */}
-          <div className="w-full max-w-[264px] sm:max-w-[297px] aspect-[9/16] bg-gradient-to-br from-white/90 to-background-soft/90 backdrop-blur-sm rounded-3xl shadow-soft-lg border border-white/50 overflow-hidden">
-            {/* Local MP4 Video */}
+          {/* Video Container — height matches video exactly */}
+          <div className="relative w-[80%] max-w-[650px] mx-auto" style={{ transform: 'scaleY(1.2)', transformOrigin: 'center' }}>
             <video
               ref={videoRef}
-              className="w-full h-full object-cover"
+              className="w-full h-auto object-contain rounded-2xl shadow-lg block"
               src="/Musical-Content/Videos/SongGit-Ad.mp4"
               title="Featured Video - Song Creation Process"
               controls
               playsInline
               preload="metadata"
               loop
-              style={{ objectFit: 'cover' }}
             />
             
             {/* Unmute Button Overlay */}
             {showUnmuteButton && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
                 <button
                   onClick={handleUnmute}
                   className="bg-white/90 hover:bg-white text-text-main rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105"
