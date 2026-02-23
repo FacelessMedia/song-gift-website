@@ -93,11 +93,11 @@ export default function RootLayout({
         </IntakeProvider>
         <NewsletterPopupManager />
         
-        {/* GoHighLevel Chatbot (Hillary) */}
+        {/* GoHighLevel Chatbot */}
         <Script
-          src="https://widgets.leadconnectorhq.com/loader.js"
-          data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
-          data-widget-id="697dc805a2eb73779455110e"
+          src="https://beta.leadconnectorhq.com/loader.js"
+          data-resources-url="https://beta.leadconnectorhq.com/chat-widget/loader.js"
+          data-widget-id="699c9b576e60093a9a0d0c99"
           strategy="afterInteractive"
         />
       </body>
